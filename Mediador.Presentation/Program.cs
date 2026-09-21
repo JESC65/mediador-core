@@ -32,6 +32,8 @@ builder.Services.AddScoped<IEventoRepository, EventoRepository>();
 builder.Services.AddScoped<IRutaTarifaEventoRepository, RutaTarifaEventoRepository>();
 builder.Services.AddScoped<IEventoMediadorService, EventoMediadorService>();
 builder.Services.AddScoped<IEnvioConsultaService, EnvioConsultaService>();
+builder.Services.AddScoped<IConfirmacionRepository, ConfirmacionRepository>();
+builder.Services.AddScoped<IConfirmacionMediadorService, ConfirmacionMediadorService>();
 
 var app = builder.Build();
 

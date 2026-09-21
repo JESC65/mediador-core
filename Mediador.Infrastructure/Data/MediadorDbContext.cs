@@ -29,6 +29,7 @@ public class MediadorDbContext : DbContext
     public DbSet<EnvioEstado> EnvioEstados => Set<EnvioEstado>();
     public DbSet<Cotizacion> Cotizaciones => Set<Cotizacion>();
     public DbSet<EventoRecibido> EventosRecibidos => Set<EventoRecibido>();
+    public DbSet<EnvioPersona> EnvioPersonas => Set<EnvioPersona>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
