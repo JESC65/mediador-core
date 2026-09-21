@@ -28,6 +28,7 @@ public class MediadorDbContext : DbContext
     public DbSet<EnvioPaquete> EnvioPaquetes => Set<EnvioPaquete>();
     public DbSet<EnvioEstado> EnvioEstados => Set<EnvioEstado>();
     public DbSet<Cotizacion> Cotizaciones => Set<Cotizacion>();
+    public DbSet<EventoRecibido> EventosRecibidos => Set<EventoRecibido>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -97,6 +98,12 @@ public class MediadorDbContext : DbContext
             e.HasKey(x => x.IdCotizacion);
             e.Property(x => x.IdCotizacion).ValueGeneratedOnAdd();
             e.Property(x => x.PrecioProveedor).HasPrecision(10, 2);
+        });
+        modelBuilder.Entity<EventoRecibido>(e =>
+        {
+            e.ToTable("EventoRecibido", "MED");
+            e.HasKey(x => x.IdEventoRecibido);
+            e.Property(x => x.IdEventoRecibido).ValueGeneratedOnAdd();
         });
     }
 }

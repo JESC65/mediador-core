@@ -1,0 +1,1557 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+Mediador.ApplicationCore/
+  Dtos/
+    Simulador/
+      ResultadoLlamadaSimuladorDto.cs
+      SimuladorCotizarRequestDto.cs
+      SimuladorCotizarResponseDto.cs
+      SimuladorPaqueteCotizarDto.cs
+      SimuladorPaqueteRegistroDto.cs
+      SimuladorPersonaDto.cs
+      SimuladorRegistrarRequestDto.cs
+      SimuladorRegistrarResponseDto.cs
+    CotizacionParaGuardarDto.cs
+    CotizarRequestDto.cs
+    CotizarResponseDto.cs
+    EnvioResumenDto.cs
+    OpcionCotizacionDto.cs
+    PaqueteCotizarDto.cs
+    ResultadoCotizacionDto.cs
+    TarifaTramoDto.cs
+    TransportistaCandidataDto.cs
+  Interfaces/
+    ICotizacionMediadorService.cs
+    ICotizacionRepository.cs
+    IEnvioRepository.cs
+    ISimuladorTransportistaClient.cs
+    ITransportistaCotizableRepository.cs
+  Services/
+    CotizacionMediadorService.cs
+  Utilidades/
+    RelojLima.cs
+  Mediador.ApplicationCore.csproj
+Mediador.Infrastructure/
+  Data/
+    MediadorDbContext.cs
+  Models/
+    Convenio.cs
+    Cotizacion.cs
+    Envio.cs
+    EnvioEstado.cs
+    EnvioPaquete.cs
+    Ruta.cs
+    TarifaProveedor.cs
+    Transportista.cs
+  Repositories/
+    CotizacionRepository.cs
+    EnvioRepository.cs
+    SimuladorTransportistaClient.cs
+    TransportistaCotizableRepository.cs
+  Mediador.Infrastructure.csproj
+Mediador.Presentation/
+  Controllers/
+    CotizarController.cs
+    PruebaSimuladorController.cs
+  Properties/
+    launchSettings.json
+  appsettings.Development.json
+  appsettings.json
+  Mediador.Presentation.csproj
+  Program.cs
+.gitignore
+Mediador.sln
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="Mediador.ApplicationCore/Dtos/Simulador/ResultadoLlamadaSimuladorDto.cs">
+namespace Mediador.ApplicationCore.Dtos.Simulador;
+
+/// <summary>
+/// Lo que devuelve el cliente HTTP del simulador: no es la lógica de qué
+/// hacer con la respuesta (eso es el viernes, la confirmación) — solo dice
+/// si la comunicación funcionó o no, y por qué, para que quien orqueste los
+/// reintentos (3.3) tenga con qué decidir.
+/// </summary>
+public class ResultadoLlamadaSimuladorDto<T>
+{
+    public bool Exitosa { get; private init; }
+    public T? Respuesta { get; private init; }
+
+    /// <summary>"TIMEOUT", "SIN_CONEXION", "ERROR_HTTP_500", "RESPUESTA_VACIA", etc.</summary>
+    public string? ErrorComunicacion { get; private init; }
+
+    public static ResultadoLlamadaSimuladorDto<T> Ok(T respuesta) => new() { Exitosa = true, Respuesta = respuesta };
+    public static ResultadoLlamadaSimuladorDto<T> Falla(string error) => new() { Exitosa = false, ErrorComunicacion = error };
+}
+</file>
+
+<file path="Mediador.ApplicationCore/Dtos/Simulador/SimuladorCotizarRequestDto.cs">
+namespace Mediador.ApplicationCore.Dtos.Simulador;
+
+/// <summary>Lo que el Mediador manda a POST /cotizar del simulador (paso 3.2 · Paso 3).</summary>
+public class SimuladorCotizarRequestDto
+{
+    public string IdCorrelacion { get; set; } = string.Empty;
+    public string IdRuta { get; set; } = string.Empty;
+    public string TipoCarga { get; set; } = string.Empty;
+    public List<SimuladorPaqueteCotizarDto> Paquetes { get; set; } = new();
+}
+</file>
+
+<file path="Mediador.ApplicationCore/Dtos/Simulador/SimuladorCotizarResponseDto.cs">
+namespace Mediador.ApplicationCore.Dtos.Simulador;
+
+/// <summary>Espejo de CotizarResponseDto del simulador — los dos casos (acepta/rechaza) en una sola forma.</summary>
+public class SimuladorCotizarResponseDto
+{
+    public string IdCorrelacion { get; set; } = string.Empty;
+    public bool Disponible { get; set; }
+    public decimal? Precio { get; set; }
+    public string? DetalleCalculo { get; set; }
+    public DateTimeOffset? VigenteHasta { get; set; }
+    public string? Motivo { get; set; }
+}
+</file>
+
+<file path="Mediador.ApplicationCore/Dtos/Simulador/SimuladorPaqueteCotizarDto.cs">
+namespace Mediador.ApplicationCore.Dtos.Simulador;
+
+/// <summary>
+/// Debe serializar EXACTAMENTE como el "paquetes" que espera POST /cotizar
+/// del simulador (ver PaqueteCotizacionDto en SimuladorEETT).
+/// </summary>
+public class SimuladorPaqueteCotizarDto
+{
+    public decimal PesoKg { get; set; }
+    public decimal LargoCm { get; set; }
+    public decimal AnchoCm { get; set; }
+    public decimal AltoCm { get; set; }
+    public bool EsFragil { get; set; }
+}
+</file>
+
+<file path="Mediador.ApplicationCore/Dtos/Simulador/SimuladorPaqueteRegistroDto.cs">
+namespace Mediador.ApplicationCore.Dtos.Simulador;
+
+public class SimuladorPaqueteRegistroDto
+{
+    public string Descripcion { get; set; } = string.Empty;
+    public decimal PesoKg { get; set; }
+    public bool EsFragil { get; set; }
+    public decimal ValorDeclarado { get; set; }
+}
+</file>
+
+<file path="Mediador.ApplicationCore/Dtos/Simulador/SimuladorPersonaDto.cs">
+namespace Mediador.ApplicationCore.Dtos.Simulador;
+
+/// <summary>Espejo de PersonaRegistroDto del simulador. Direccion/Ubigeo solo van en consignado.</summary>
+public class SimuladorPersonaDto
+{
+    public string TipoDocumento { get; set; } = string.Empty;
+    public string NumeroDocumento { get; set; } = string.Empty;
+    public string Nombres { get; set; } = string.Empty;
+    public string Apellidos { get; set; } = string.Empty;
+    public string Telefono { get; set; } = string.Empty;
+    public string? Direccion { get; set; }
+    public string? Ubigeo { get; set; }
+}
+</file>
+
+<file path="Mediador.ApplicationCore/Dtos/Simulador/SimuladorRegistrarRequestDto.cs">
+namespace Mediador.ApplicationCore.Dtos.Simulador;
+
+/// <summary>
+/// Lo que el Mediador manda a POST /registrar del simulador (paso 3.2 · Paso 5).
+/// IMPORTANTE: no debe llevar el precio de venta al cliente final — solo
+/// PrecioAcordado, que es el precio real que ya devolvió la transportista.
+/// </summary>
+public class SimuladorRegistrarRequestDto
+{
+    public string IdCorrelacion { get; set; } = string.Empty;
+    public string CodigoSeguimiento { get; set; } = string.Empty;
+    public string IdRuta { get; set; } = string.Empty;
+    public decimal PrecioAcordado { get; set; }
+    public List<SimuladorPaqueteRegistroDto> Paquetes { get; set; } = new();
+    public SimuladorPersonaDto Remitente { get; set; } = new();
+    public SimuladorPersonaDto Consignado { get; set; } = new();
+}
+</file>
+
+<file path="Mediador.ApplicationCore/Dtos/Simulador/SimuladorRegistrarResponseDto.cs">
+namespace Mediador.ApplicationCore.Dtos.Simulador;
+
+public class SimuladorRegistrarResponseDto
+{
+    public string IdCorrelacion { get; set; } = string.Empty;
+    public bool Aceptado { get; set; }
+    public string? NumeroGuiaEETT { get; set; }
+    public DateTimeOffset? FechaRegistro { get; set; }
+    public string? Motivo { get; set; }
+}
+</file>
+
+<file path="Mediador.ApplicationCore/Interfaces/ISimuladorTransportistaClient.cs">
+using Mediador.ApplicationCore.Dtos.Simulador;
+
+namespace Mediador.ApplicationCore.Interfaces;
+
+/// <summary>
+/// Sabe llamar por HTTP a las operaciones del simulador de una
+/// transportista — nada de lógica de negocio todavía (eso es la
+/// confirmación completa del viernes, 3.2). urlBaseTransportista es
+/// MED.Transportista.UrlConector, leído de la base por quien llame a
+/// esta interfaz; el cliente no la fija ni la adivina.
+/// </summary>
+public interface ISimuladorTransportistaClient
+{
+    /// <summary>POST {urlBaseTransportista}/cotizar — espera máxima 15 segundos (3.3).</summary>
+    Task<ResultadoLlamadaSimuladorDto<SimuladorCotizarResponseDto>> ConsultarPrecio(
+        string urlBaseTransportista, SimuladorCotizarRequestDto request);
+
+    /// <summary>POST {urlBaseTransportista}/registrar — espera máxima 30 segundos (3.3).</summary>
+    Task<ResultadoLlamadaSimuladorDto<SimuladorRegistrarResponseDto>> Registrar(
+        string urlBaseTransportista, SimuladorRegistrarRequestDto request);
+}
+</file>
+
+<file path="Mediador.Infrastructure/Repositories/SimuladorTransportistaClient.cs">
+using System.Net.Http.Json;
+using Mediador.ApplicationCore.Dtos.Simulador;
+using Mediador.ApplicationCore.Interfaces;
+using Microsoft.Extensions.Logging;
+
+namespace Mediador.Infrastructure.Clientes;
+
+/// <summary>
+/// La implementación real: arma el POST hacia el simulador y trae la
+/// respuesta. Sin reintentos todavía — eso es 3.3, y pertenece a la
+/// confirmación (viernes), que es quien decide cuándo reintentar y cuándo
+/// simplemente descartar la opción. Hoy esto solo intenta una vez, con el
+/// tiempo de espera explícito que pide cada operación, y reporta si la
+/// comunicación funcionó o no.
+/// </summary>
+public class SimuladorTransportistaClient : ISimuladorTransportistaClient
+{
+    private static readonly TimeSpan EsperaConsultarPrecio = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan EsperaRegistrar = TimeSpan.FromSeconds(30);
+
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ILogger<SimuladorTransportistaClient> _logger;
+
+    public SimuladorTransportistaClient(IHttpClientFactory httpClientFactory, ILogger<SimuladorTransportistaClient> logger)
+    {
+        _httpClientFactory = httpClientFactory;
+        _logger = logger;
+    }
+
+    public Task<ResultadoLlamadaSimuladorDto<SimuladorCotizarResponseDto>> ConsultarPrecio(
+        string urlBaseTransportista, SimuladorCotizarRequestDto request) =>
+        Llamar<SimuladorCotizarRequestDto, SimuladorCotizarResponseDto>(
+            urlBaseTransportista, "cotizar", request, EsperaConsultarPrecio);
+
+    public Task<ResultadoLlamadaSimuladorDto<SimuladorRegistrarResponseDto>> Registrar(
+        string urlBaseTransportista, SimuladorRegistrarRequestDto request) =>
+        Llamar<SimuladorRegistrarRequestDto, SimuladorRegistrarResponseDto>(
+            urlBaseTransportista, "registrar", request, EsperaRegistrar);
+
+    private async Task<ResultadoLlamadaSimuladorDto<TRespuesta>> Llamar<TPeticion, TRespuesta>(
+        string urlBaseTransportista, string ruta, TPeticion request, TimeSpan esperaMaxima)
+    {
+        var url = $"{urlBaseTransportista.TrimEnd('/')}/{ruta}";
+        var cliente = _httpClientFactory.CreateClient();
+
+        // Tiempo de espera explícito por llamada (no el timeout global del
+        // HttpClient): así /cotizar y /registrar pueden tener cada uno el
+        // suyo (15s y 30s) sin pisarse entre sí.
+        using var cts = new CancellationTokenSource(esperaMaxima);
+
+        try
+        {
+            using var httpResponse = await cliente.PostAsJsonAsync(url, request, cts.Token);
+
+            if (!httpResponse.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("El simulador respondió {StatusCode} en {Url}", (int)httpResponse.StatusCode, url);
+                return ResultadoLlamadaSimuladorDto<TRespuesta>.Falla($"ERROR_HTTP_{(int)httpResponse.StatusCode}");
+            }
+
+            var cuerpo = await httpResponse.Content.ReadFromJsonAsync<TRespuesta>(cancellationToken: cts.Token);
+            if (cuerpo is null)
+            {
+                _logger.LogWarning("El simulador respondió 2xx pero sin cuerpo interpretable en {Url}", url);
+                return ResultadoLlamadaSimuladorDto<TRespuesta>.Falla("RESPUESTA_VACIA");
+            }
+
+            return ResultadoLlamadaSimuladorDto<TRespuesta>.Ok(cuerpo);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning("Se agotó la espera de {Segundos}s llamando a {Url}", esperaMaxima.TotalSeconds, url);
+            return ResultadoLlamadaSimuladorDto<TRespuesta>.Falla("TIMEOUT");
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "No se pudo conectar a {Url}", url);
+            return ResultadoLlamadaSimuladorDto<TRespuesta>.Falla("SIN_CONEXION");
+        }
+    }
+}
+</file>
+
+<file path="Mediador.Presentation/Controllers/PruebaSimuladorController.cs">
+using Mediador.ApplicationCore.Dtos.Simulador;
+using Mediador.ApplicationCore.Interfaces;
+using Mediador.Infrastructure.Data;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+namespace Mediador.Presentation.Controllers;
+
+/// <summary>
+/// Endpoint de prueba, no de negocio: sirve para probar hoy que el
+/// cliente del simulador funciona de punta a punta (la captura que pide
+/// la Tarea 4 de hoy), antes de que exista la confirmación real que lo
+/// use de verdad el viernes. Por eso consulta el DbContext directo en vez
+/// de pasar por un repositorio — es un atajo a propósito para esta
+/// prueba, no el patrón a seguir en el resto del proyecto. Se puede
+/// borrar cuando 3.2 esté construida y lo reemplace.
+/// </summary>
+[ApiController]
+[Route("prueba/simulador")]
+public class PruebaSimuladorController : ControllerBase
+{
+    private readonly MediadorDbContext _db;
+    private readonly ISimuladorTransportistaClient _cliente;
+
+    public PruebaSimuladorController(MediadorDbContext db, ISimuladorTransportistaClient cliente)
+    {
+        _db = db;
+        _cliente = cliente;
+    }
+
+    /// <summary>
+    /// POST /prueba/simulador/{idTransportista}/cotizar
+    /// Lee UrlConector de MED.Transportista y llama al POST /cotizar real del simulador.
+    /// </summary>
+    [HttpPost("{idTransportista:int}/cotizar")]
+    public async Task<IActionResult> ConsultarPrecio(int idTransportista, [FromBody] SimuladorCotizarRequestDto request)
+    {
+        var urlConector = await _db.Transportistas.AsNoTracking()
+            .Where(t => t.IdTransportista == idTransportista)
+            .Select(t => t.UrlConector)
+            .FirstOrDefaultAsync();
+
+        if (string.IsNullOrWhiteSpace(urlConector))
+        {
+            return NotFound($"La transportista {idTransportista} no existe o no tiene UrlConector configurada.");
+        }
+
+        var resultado = await _cliente.ConsultarPrecio(urlConector, request);
+
+        if (!resultado.Exitosa)
+        {
+            return StatusCode(502, new { error = resultado.ErrorComunicacion, urlConector });
+        }
+
+        return Ok(resultado.Respuesta);
+    }
+
+    /// <summary>
+    /// POST /prueba/simulador/{idTransportista}/registrar
+    /// Lee UrlConector de MED.Transportista y llama al POST /registrar real del simulador.
+    /// </summary>
+    [HttpPost("{idTransportista:int}/registrar")]
+    public async Task<IActionResult> Registrar(int idTransportista, [FromBody] SimuladorRegistrarRequestDto request)
+    {
+        var urlConector = await _db.Transportistas.AsNoTracking()
+            .Where(t => t.IdTransportista == idTransportista)
+            .Select(t => t.UrlConector)
+            .FirstOrDefaultAsync();
+
+        if (string.IsNullOrWhiteSpace(urlConector))
+        {
+            return NotFound($"La transportista {idTransportista} no existe o no tiene UrlConector configurada.");
+        }
+
+        var resultado = await _cliente.Registrar(urlConector, request);
+
+        if (!resultado.Exitosa)
+        {
+            return StatusCode(502, new { error = resultado.ErrorComunicacion, urlConector });
+        }
+
+        return Ok(resultado.Respuesta);
+    }
+}
+</file>
+
+<file path="Mediador.ApplicationCore/Dtos/CotizacionParaGuardarDto.cs">
+namespace Mediador.ApplicationCore.Dtos;
+
+public class CotizacionParaGuardarDto
+{
+    public int IdEnvio { get; set; }
+    public int IdTransportista { get; set; }
+    public string NombreTransportista { get; set; } = string.Empty;
+    public int? IdTarifaProveedor { get; set; }
+    public string IdOpcion { get; set; } = string.Empty;
+    public decimal? PrecioProveedor { get; set; }
+    public bool PrecioEsEstimado { get; set; } = true;
+    public string? FrecuenciaSalidas { get; set; }
+    public bool AceptaFragil { get; set; }
+    public bool Descartada { get; set; }
+    public string? MotivoDescarte { get; set; }
+    public DateTimeOffset VigenteHasta { get; set; }
+}
+</file>
+
+<file path="Mediador.ApplicationCore/Dtos/CotizarRequestDto.cs">
+namespace Mediador.ApplicationCore.Dtos;
+
+public class CotizarRequestDto
+{
+    public string IdCorrelacion { get; set; } = string.Empty;
+    public string IdEnvioCourier { get; set; } = string.Empty;
+    public int IdCourier { get; set; }
+    public string? UbigeoOrigen { get; set; }
+    public string UbigeoDestino { get; set; } = string.Empty;
+    public string TipoCarga { get; set; } = string.Empty;
+    public DateTimeOffset? FechaSolicitud { get; set; }
+    public List<PaqueteCotizarDto> Paquetes { get; set; } = new();
+}
+</file>
+
+<file path="Mediador.ApplicationCore/Dtos/CotizarResponseDto.cs">
+using System.Text.Json.Serialization;
+
+namespace Mediador.ApplicationCore.Dtos;
+
+public class CotizarResponseDto
+{
+    public string IdCorrelacion { get; set; } = string.Empty;
+    public string Estado { get; set; } = string.Empty;
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public decimal? PesoTotalKg { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? CantidadPaquetes { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<OpcionCotizacionDto>? Opciones { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Motivo { get; set; }
+}
+</file>
+
+<file path="Mediador.ApplicationCore/Dtos/EnvioResumenDto.cs">
+namespace Mediador.ApplicationCore.Dtos;
+
+public class EnvioResumenDto
+{
+    public int IdEnvio { get; set; }
+    public string Estado { get; set; } = string.Empty;
+    public decimal PesoTotalKg { get; set; }
+    public int CantidadPaquetes { get; set; }
+}
+</file>
+
+<file path="Mediador.ApplicationCore/Dtos/OpcionCotizacionDto.cs">
+namespace Mediador.ApplicationCore.Dtos;
+
+public class OpcionCotizacionDto
+{
+    public string IdOpcion { get; set; } = string.Empty;
+    public int IdTransportista { get; set; }
+    public string NombreTransportista { get; set; } = string.Empty;
+    public decimal PrecioReferencial { get; set; }
+    public bool PrecioEsEstimado { get; set; }
+    public string? FrecuenciaSalidas { get; set; }
+    public bool AceptaFragil { get; set; }
+    public DateTimeOffset VigenteHasta { get; set; }
+}
+</file>
+
+<file path="Mediador.ApplicationCore/Dtos/PaqueteCotizarDto.cs">
+namespace Mediador.ApplicationCore.Dtos;
+
+public class PaqueteCotizarDto
+{
+    public string? Descripcion { get; set; }
+    public decimal PesoKg { get; set; }
+    public int Cantidad { get; set; } = 1;
+    public bool EsFragil { get; set; }
+}
+</file>
+
+<file path="Mediador.ApplicationCore/Dtos/ResultadoCotizacionDto.cs">
+namespace Mediador.ApplicationCore.Dtos;
+
+public class ResultadoCotizacionDto
+{
+    public CotizarResponseDto? Respuesta { get; private init; }
+    public string? EstadoConflicto { get; private init; }
+
+    public static ResultadoCotizacionDto Ok(CotizarResponseDto respuesta) => new() { Respuesta = respuesta };
+    public static ResultadoCotizacionDto Conflicto(string estadoActual) => new() { EstadoConflicto = estadoActual };
+}
+</file>
+
+<file path="Mediador.ApplicationCore/Dtos/TarifaTramoDto.cs">
+namespace Mediador.ApplicationCore.Dtos;
+
+public class TarifaTramoDto
+{
+    public int IdTarifaProveedor { get; set; }
+    public decimal Precio { get; set; }
+    public decimal? PrecioMinimo { get; set; }
+}
+</file>
+
+<file path="Mediador.ApplicationCore/Dtos/TransportistaCandidataDto.cs">
+namespace Mediador.ApplicationCore.Dtos;
+public class TransportistaCandidataDto
+{
+    public int IdTransportista { get; set; }
+    public string RazonSocial { get; set; } = string.Empty;
+    public int IdRuta { get; set; }
+    public bool AceptaFragil { get; set; }
+    public decimal? PesoMaximoKg { get; set; }
+    public string? FrecuenciaSalidas { get; set; }
+}
+</file>
+
+<file path="Mediador.ApplicationCore/Interfaces/ICotizacionMediadorService.cs">
+using Mediador.ApplicationCore.Dtos;
+
+namespace Mediador.ApplicationCore.Interfaces;
+
+public interface ICotizacionMediadorService
+{
+    Task<ResultadoCotizacionDto> Cotizar(CotizarRequestDto request);
+}
+</file>
+
+<file path="Mediador.ApplicationCore/Interfaces/ICotizacionRepository.cs">
+using Mediador.ApplicationCore.Dtos;
+
+namespace Mediador.ApplicationCore.Interfaces;
+
+public interface ICotizacionRepository
+{
+    Task GuardarCotizaciones(IReadOnlyList<CotizacionParaGuardarDto> cotizaciones);
+    Task<IReadOnlyList<OpcionCotizacionDto>> ObtenerNoDescartadas(int idEnvio);
+}
+</file>
+
+<file path="Mediador.ApplicationCore/Interfaces/IEnvioRepository.cs">
+using Mediador.ApplicationCore.Dtos;
+
+namespace Mediador.ApplicationCore.Interfaces;
+
+public interface IEnvioRepository
+{
+    Task<EnvioResumenDto?> BuscarPorIdCorrelacion(string idCorrelacion);
+    Task<int> CrearEnvioCotizado(CotizarRequestDto request, decimal pesoTotalKg, int cantidadPaquetes);
+}
+</file>
+
+<file path="Mediador.ApplicationCore/Interfaces/ITransportistaCotizableRepository.cs">
+using Mediador.ApplicationCore.Dtos;
+
+namespace Mediador.ApplicationCore.Interfaces;
+
+public interface ITransportistaCotizableRepository
+{
+    Task<IReadOnlyList<int>> ObtenerIdsConConvenioActivo(int idCourier);
+    Task<IReadOnlyList<TransportistaCandidataDto>> ObtenerCandidatasConRuta(int idCourier, string? ubigeoOrigen, string ubigeoDestino);
+    Task<TarifaTramoDto?> BuscarTramo(int idRuta, string tipoCarga, decimal pesoTotalKg);
+}
+</file>
+
+<file path="Mediador.ApplicationCore/Services/CotizacionMediadorService.cs">
+using Mediador.ApplicationCore.Dtos;
+using Mediador.ApplicationCore.Interfaces;
+using Mediador.ApplicationCore.Utilidades;
+
+namespace Mediador.ApplicationCore.Services;
+
+public class CotizacionMediadorService : ICotizacionMediadorService
+{
+    private readonly IEnvioRepository _envioRepositorio;
+    private readonly ITransportistaCotizableRepository _transportistaRepositorio;
+    private readonly ICotizacionRepository _cotizacionRepositorio;
+
+    public CotizacionMediadorService(
+        IEnvioRepository envioRepositorio,
+        ITransportistaCotizableRepository transportistaRepositorio,
+        ICotizacionRepository cotizacionRepositorio)
+    {
+        _envioRepositorio = envioRepositorio;
+        _transportistaRepositorio = transportistaRepositorio;
+        _cotizacionRepositorio = cotizacionRepositorio;
+    }
+
+    public async Task<ResultadoCotizacionDto> Cotizar(CotizarRequestDto request)
+    {
+        var existente = await _envioRepositorio.BuscarPorIdCorrelacion(request.IdCorrelacion);
+        if (existente is not null)
+        {
+            if (existente.Estado != "COTIZADO")
+            {
+                return ResultadoCotizacionDto.Conflicto(existente.Estado);
+            }
+
+            var opcionesPrevias = await _cotizacionRepositorio.ObtenerNoDescartadas(existente.IdEnvio);
+            return ResultadoCotizacionDto.Ok(ArmarRespuestaConOpciones(
+                request.IdCorrelacion, existente.PesoTotalKg, existente.CantidadPaquetes, opcionesPrevias));
+        }
+
+        var pesoTotalKg = request.Paquetes.Sum(p => p.PesoKg * p.Cantidad);
+        var cantidadPaquetes = request.Paquetes.Sum(p => p.Cantidad);
+
+        var idEnvio = await _envioRepositorio.CrearEnvioCotizado(request, pesoTotalKg, cantidadPaquetes);
+
+        var idsConConvenio = await _transportistaRepositorio.ObtenerIdsConConvenioActivo(request.IdCourier);
+        if (idsConConvenio.Count == 0)
+        {
+            return ResultadoCotizacionDto.Ok(SinOpciones(request.IdCorrelacion, "SIN_CONVENIO_VIGENTE"));
+        }
+
+        var candidatas = await _transportistaRepositorio.ObtenerCandidatasConRuta(
+            request.IdCourier, request.UbigeoOrigen, request.UbigeoDestino);
+        if (candidatas.Count == 0)
+        {
+            return ResultadoCotizacionDto.Ok(SinOpciones(request.IdCorrelacion, "NINGUNA_CUBRE_RUTA"));
+        }
+
+        var hayPaqueteFragil = request.Paquetes.Any(p => p.EsFragil);
+        var vigenteHasta = RelojLima.Ahora().AddHours(2);
+        var paraGuardar = new List<CotizacionParaGuardarDto>();
+
+        foreach (var candidata in candidatas)
+        {
+            var fila = await EvaluarCandidata(candidata, request, pesoTotalKg, hayPaqueteFragil, idEnvio, vigenteHasta);
+            paraGuardar.Add(fila);
+        }
+
+        await _cotizacionRepositorio.GuardarCotizaciones(paraGuardar);
+
+        var opciones = paraGuardar
+            .Where(c => !c.Descartada)
+            .OrderBy(c => c.PrecioProveedor)
+            .Select(MapearAOpcion)
+            .ToList();
+
+        if (opciones.Count == 0)
+        {
+            return ResultadoCotizacionDto.Ok(SinOpciones(request.IdCorrelacion, "NINGUNA_ACEPTA_CARGA"));
+        }
+
+        return ResultadoCotizacionDto.Ok(new CotizarResponseDto
+        {
+            IdCorrelacion = request.IdCorrelacion,
+            Estado = "COTIZADO",
+            PesoTotalKg = pesoTotalKg,
+            CantidadPaquetes = cantidadPaquetes,
+            Opciones = opciones
+        });
+    }
+
+    private async Task<CotizacionParaGuardarDto> EvaluarCandidata(
+        TransportistaCandidataDto candidata,
+        CotizarRequestDto request,
+        decimal pesoTotalKg,
+        bool hayPaqueteFragil,
+        int idEnvio,
+        DateTimeOffset vigenteHasta)
+    {
+        var fila = new CotizacionParaGuardarDto
+        {
+            IdEnvio = idEnvio,
+            IdTransportista = candidata.IdTransportista,
+            NombreTransportista = candidata.RazonSocial,
+            IdOpcion = GenerarIdOpcion(),
+            PrecioEsEstimado = true,
+            FrecuenciaSalidas = candidata.FrecuenciaSalidas,
+            AceptaFragil = candidata.AceptaFragil,
+            VigenteHasta = vigenteHasta
+        };
+
+        if (hayPaqueteFragil && !candidata.AceptaFragil)
+        {
+            fila.Descartada = true;
+            fila.MotivoDescarte = "NO_ACEPTA_FRAGIL";
+            return fila;
+        }
+
+        if (candidata.PesoMaximoKg.HasValue && pesoTotalKg > candidata.PesoMaximoKg.Value)
+        {
+            fila.Descartada = true;
+            fila.MotivoDescarte = "EXCEDE_PESO_MAXIMO";
+            return fila;
+        }
+
+        var tramo = await _transportistaRepositorio.BuscarTramo(candidata.IdRuta, request.TipoCarga, pesoTotalKg);
+        if (tramo is null)
+        {
+            fila.Descartada = true;
+            fila.MotivoDescarte = "SIN_TARIFA_APLICABLE";
+            return fila;
+        }
+
+        fila.IdTarifaProveedor = tramo.IdTarifaProveedor;
+        fila.PrecioProveedor = tramo.PrecioMinimo.HasValue
+            ? Math.Max(tramo.Precio, tramo.PrecioMinimo.Value)
+            : tramo.Precio;
+
+        if (request.UbigeoOrigen is null)
+        {
+            fila.MotivoDescarte = "ORIGEN_NO_VERIFICADO";
+        }
+
+        return fila;
+    }
+
+    private static CotizarResponseDto SinOpciones(string idCorrelacion, string motivo) => new()
+    {
+        IdCorrelacion = idCorrelacion,
+        Estado = "SIN_OPCIONES",
+        Motivo = motivo
+    };
+
+    private static CotizarResponseDto ArmarRespuestaConOpciones(
+        string idCorrelacion, decimal pesoTotalKg, int cantidadPaquetes, IReadOnlyList<OpcionCotizacionDto> opciones)
+    {
+        if (opciones.Count == 0)
+        {
+            return SinOpciones(idCorrelacion, "NINGUNA_ACEPTA_CARGA");
+        }
+
+        return new CotizarResponseDto
+        {
+            IdCorrelacion = idCorrelacion,
+            Estado = "COTIZADO",
+            PesoTotalKg = pesoTotalKg,
+            CantidadPaquetes = cantidadPaquetes,
+            Opciones = opciones.ToList()
+        };
+    }
+
+    private static OpcionCotizacionDto MapearAOpcion(CotizacionParaGuardarDto c) => new()
+    {
+        IdOpcion = c.IdOpcion,
+        IdTransportista = c.IdTransportista,
+        NombreTransportista = c.NombreTransportista,
+        PrecioReferencial = c.PrecioProveedor!.Value,
+        PrecioEsEstimado = c.PrecioEsEstimado,
+        FrecuenciaSalidas = c.FrecuenciaSalidas,
+        AceptaFragil = c.AceptaFragil,
+        VigenteHasta = c.VigenteHasta
+    };
+
+    private static string GenerarIdOpcion() =>
+        "OPT-" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+}
+</file>
+
+<file path="Mediador.ApplicationCore/Utilidades/RelojLima.cs">
+namespace Mediador.ApplicationCore.Utilidades;
+
+public static class RelojLima
+{
+    private static readonly TimeSpan Offset = TimeSpan.FromHours(-5);
+
+    public static DateTimeOffset Ahora()
+    {
+        var ahora = DateTimeOffset.UtcNow.ToOffset(Offset);
+        return new DateTimeOffset(
+            ahora.Year, ahora.Month, ahora.Day,
+            ahora.Hour, ahora.Minute, ahora.Second,
+            ahora.Offset);
+    }
+}
+</file>
+
+<file path="Mediador.ApplicationCore/Mediador.ApplicationCore.csproj">
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
+</file>
+
+<file path="Mediador.Infrastructure/Data/MediadorDbContext.cs">
+using Microsoft.EntityFrameworkCore;
+using Mediador.Infrastructure.Models;
+
+namespace Mediador.Infrastructure.Data;
+
+/// <summary>
+/// El esquema MED ya existe (lo crea 01_esquema.sql, a mano, database-first).
+/// Este DbContext solo mapea encima de esas tablas — no hay migraciones de
+/// EF Core en este proyecto, y no deben agregarse sin avisar, porque una
+/// migración intentaría recrear tablas que ya están creadas por script.
+///
+/// Solo mapeo acá las ocho tablas que necesita la cotización de hoy
+/// (Bloque 2). Faltan Courier, EnvioPersona, PrecioVenta, EventoRecibido y
+/// EnvioDocumento — se agregan cuando el bloque que las use (confirmación,
+/// eventos, etc.) las necesite.
+/// </summary>
+public class MediadorDbContext : DbContext
+{
+    public MediadorDbContext(DbContextOptions<MediadorDbContext> options) : base(options)
+    {
+    }
+
+    public DbSet<Transportista> Transportistas => Set<Transportista>();
+    public DbSet<Convenio> Convenios => Set<Convenio>();
+    public DbSet<Ruta> Rutas => Set<Ruta>();
+    public DbSet<TarifaProveedor> TarifasProveedor => Set<TarifaProveedor>();
+    public DbSet<Envio> Envios => Set<Envio>();
+    public DbSet<EnvioPaquete> EnvioPaquetes => Set<EnvioPaquete>();
+    public DbSet<EnvioEstado> EnvioEstados => Set<EnvioEstado>();
+    public DbSet<Cotizacion> Cotizaciones => Set<Cotizacion>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Transportista>(e =>
+        {
+            e.ToTable("Transportista", "MED");
+            e.HasKey(x => x.IdTransportista);
+            e.Property(x => x.IdTransportista).ValueGeneratedOnAdd();
+        });
+
+        modelBuilder.Entity<Convenio>(e =>
+        {
+            e.ToTable("Convenio", "MED");
+            e.HasKey(x => x.IdConvenio);
+            e.Property(x => x.IdConvenio).ValueGeneratedOnAdd();
+        });
+
+        modelBuilder.Entity<Ruta>(e =>
+        {
+            e.ToTable("Ruta", "MED");
+            e.HasKey(x => x.IdRuta);
+            e.Property(x => x.IdRuta).ValueGeneratedOnAdd();
+            e.Property(x => x.PesoMaximoKg).HasPrecision(8, 2);
+        });
+
+        modelBuilder.Entity<TarifaProveedor>(e =>
+        {
+            e.ToTable("TarifaProveedor", "MED");
+            e.HasKey(x => x.IdTarifaProveedor);
+            e.Property(x => x.IdTarifaProveedor).ValueGeneratedOnAdd();
+            e.Property(x => x.PesoDesdeKg).HasPrecision(8, 2);
+            e.Property(x => x.PesoHastaKg).HasPrecision(8, 2);
+            e.Property(x => x.Precio).HasPrecision(10, 2);
+            e.Property(x => x.PrecioMinimo).HasPrecision(10, 2);
+        });
+
+        modelBuilder.Entity<Envio>(e =>
+        {
+            e.ToTable("Envio", "MED");
+            e.HasKey(x => x.IdEnvio);
+            e.Property(x => x.IdEnvio).ValueGeneratedOnAdd();
+            e.Property(x => x.PesoTotalKg).HasPrecision(8, 2);
+        });
+
+        modelBuilder.Entity<EnvioPaquete>(e =>
+        {
+            e.ToTable("EnvioPaquete", "MED");
+            e.HasKey(x => x.IdEnvioPaquete);
+            e.Property(x => x.IdEnvioPaquete).ValueGeneratedOnAdd();
+            e.Property(x => x.PesoKg).HasPrecision(8, 2);
+            e.Property(x => x.LargoCm).HasPrecision(8, 2);
+            e.Property(x => x.AnchoCm).HasPrecision(8, 2);
+            e.Property(x => x.AltoCm).HasPrecision(8, 2);
+            e.Property(x => x.ValorDeclarado).HasPrecision(10, 2);
+        });
+
+        modelBuilder.Entity<EnvioEstado>(e =>
+        {
+            e.ToTable("EnvioEstado", "MED");
+            e.HasKey(x => x.IdEnvioEstado);
+            e.Property(x => x.IdEnvioEstado).ValueGeneratedOnAdd();
+        });
+
+        modelBuilder.Entity<Cotizacion>(e =>
+        {
+            e.ToTable("Cotizacion", "MED");
+            e.HasKey(x => x.IdCotizacion);
+            e.Property(x => x.IdCotizacion).ValueGeneratedOnAdd();
+            e.Property(x => x.PrecioProveedor).HasPrecision(10, 2);
+        });
+    }
+}
+</file>
+
+<file path="Mediador.Infrastructure/Models/Convenio.cs">
+namespace Mediador.Infrastructure.Models;
+
+public class Convenio
+{
+    public int IdConvenio { get; set; }
+    public int IdCourier { get; set; }
+    public int IdTransportista { get; set; }
+    public DateOnly FechaInicio { get; set; }
+    public DateOnly? FechaFin { get; set; }
+    public string? Observacion { get; set; }
+    public bool Activo { get; set; }
+}
+</file>
+
+<file path="Mediador.Infrastructure/Models/Cotizacion.cs">
+namespace Mediador.Infrastructure.Models;
+
+public class Cotizacion
+{
+    public int IdCotizacion { get; set; }
+    public int IdEnvio { get; set; }
+    public int IdTransportista { get; set; }
+    public int? IdTarifaProveedor { get; set; }
+    public string IdOpcion { get; set; } = string.Empty;
+    public decimal? PrecioProveedor { get; set; }
+    public bool PrecioEsEstimado { get; set; } = true;
+    public string? FrecuenciaSalidas { get; set; }
+    public bool Elegida { get; set; }
+    public bool Descartada { get; set; }
+    public string? MotivoDescarte { get; set; }
+    public DateTimeOffset FechaCotizacion { get; set; }
+    public DateTimeOffset VigenteHasta { get; set; }
+}
+</file>
+
+<file path="Mediador.Infrastructure/Models/Envio.cs">
+namespace Mediador.Infrastructure.Models;
+
+public class Envio
+{
+    public int IdEnvio { get; set; }
+    public string? CodigoSeguimiento { get; set; }
+    public string IdCorrelacion { get; set; } = string.Empty;
+    public string IdEnvioCourier { get; set; } = string.Empty;
+    public int IdCourier { get; set; }
+    public string? UbigeoOrigen { get; set; }
+    public string UbigeoDestino { get; set; } = string.Empty;
+    public string? TipoCarga { get; set; }
+    public decimal PesoTotalKg { get; set; }
+    public int CantidadPaquetes { get; set; }
+    public string Estado { get; set; } = string.Empty;
+    public int? IdTransportistaElegida { get; set; }
+    public int? IdCotizacionElegida { get; set; }
+    public DateTimeOffset FechaRegistro { get; set; }
+    public DateTimeOffset? FechaConfirmacion { get; set; }
+    public string? Observacion { get; set; }
+}
+</file>
+
+<file path="Mediador.Infrastructure/Models/EnvioEstado.cs">
+namespace Mediador.Infrastructure.Models;
+
+public class EnvioEstado
+{
+    public int IdEnvioEstado { get; set; }
+    public int IdEnvio { get; set; }
+    public string Estado { get; set; } = string.Empty;
+    public DateTimeOffset FechaEstado { get; set; }
+    public string Origen { get; set; } = string.Empty;
+    public string? Comentario { get; set; }
+    public string? Usuario { get; set; }
+}
+</file>
+
+<file path="Mediador.Infrastructure/Models/EnvioPaquete.cs">
+namespace Mediador.Infrastructure.Models;
+
+public class EnvioPaquete
+{
+    public int IdEnvioPaquete { get; set; }
+    public int IdEnvio { get; set; }
+    public string? Descripcion { get; set; }
+    public decimal PesoKg { get; set; }
+    public int Cantidad { get; set; } = 1;
+    public decimal? LargoCm { get; set; }
+    public decimal? AnchoCm { get; set; }
+    public decimal? AltoCm { get; set; }
+    public bool? EsFragil { get; set; }
+    public decimal? ValorDeclarado { get; set; }
+}
+</file>
+
+<file path="Mediador.Infrastructure/Models/Ruta.cs">
+namespace Mediador.Infrastructure.Models;
+
+public class Ruta
+{
+    public int IdRuta { get; set; }
+    public int IdTransportista { get; set; }
+    public string CodigoRutaExterno { get; set; } = string.Empty;
+    public string UbigeoOrigen { get; set; } = string.Empty;
+    public string UbigeoDestino { get; set; } = string.Empty;
+    public string? NombreOrigen { get; set; }
+    public string? NombreDestino { get; set; }
+    public string? FrecuenciaSalidas { get; set; }
+    public string? HoraSalidaHabitual { get; set; }
+    public bool AceptaFragil { get; set; }
+    public decimal? PesoMaximoKg { get; set; }
+    public bool Activa { get; set; }
+    public DateTimeOffset FechaActualizacion { get; set; }
+}
+</file>
+
+<file path="Mediador.Infrastructure/Models/TarifaProveedor.cs">
+namespace Mediador.Infrastructure.Models;
+
+public class TarifaProveedor
+{
+    public int IdTarifaProveedor { get; set; }
+    public int IdRuta { get; set; }
+    public string TipoCarga { get; set; } = string.Empty;
+    public decimal PesoDesdeKg { get; set; }
+    public decimal PesoHastaKg { get; set; }
+    public decimal Precio { get; set; }
+    public decimal? PrecioMinimo { get; set; }
+    public DateOnly VigenteDesde { get; set; }
+    public DateOnly? VigenteHasta { get; set; }
+    public bool Activo { get; set; }
+}
+</file>
+
+<file path="Mediador.Infrastructure/Models/Transportista.cs">
+namespace Mediador.Infrastructure.Models;
+
+public class Transportista
+{
+    public int IdTransportista { get; set; }
+    public string Ruc { get; set; } = string.Empty;
+    public string RazonSocial { get; set; } = string.Empty;
+    public string? NombreComercial { get; set; }
+    public string? UrlConector { get; set; }
+    public string? Telefono { get; set; }
+    public bool Activo { get; set; }
+    public DateTimeOffset FechaRegistro { get; set; }
+}
+</file>
+
+<file path="Mediador.Infrastructure/Repositories/CotizacionRepository.cs">
+using Mediador.ApplicationCore.Dtos;
+using Mediador.ApplicationCore.Interfaces;
+using Mediador.ApplicationCore.Utilidades;
+using Mediador.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+
+namespace Mediador.Infrastructure.Repositories;
+
+public class CotizacionRepository : ICotizacionRepository
+{
+    private readonly MediadorDbContext _db;
+
+    public CotizacionRepository(MediadorDbContext db)
+    {
+        _db = db;
+    }
+
+    public async Task GuardarCotizaciones(IReadOnlyList<CotizacionParaGuardarDto> cotizaciones)
+    {
+        var ahora = RelojLima.Ahora();
+
+        foreach (var c in cotizaciones)
+        {
+            _db.Cotizaciones.Add(new Models.Cotizacion
+            {
+                IdEnvio = c.IdEnvio,
+                IdTransportista = c.IdTransportista,
+                IdTarifaProveedor = c.IdTarifaProveedor,
+                IdOpcion = c.IdOpcion,
+                PrecioProveedor = c.PrecioProveedor,
+                PrecioEsEstimado = c.PrecioEsEstimado,
+                FrecuenciaSalidas = c.FrecuenciaSalidas,
+                Descartada = c.Descartada,
+                MotivoDescarte = c.MotivoDescarte,
+                FechaCotizacion = ahora,
+                VigenteHasta = c.VigenteHasta
+            });
+        }
+
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task<IReadOnlyList<OpcionCotizacionDto>> ObtenerNoDescartadas(int idEnvio)
+    {
+        // Se pasa por TarifaProveedor -> Ruta para recuperar AceptaFragil:
+        // Cotizacion no guarda ese dato directo, y toda fila no descartada
+        // sí tiene IdTarifaProveedor (se calculó un precio para llegar hasta acá).
+        var query =
+            from cot in _db.Cotizaciones
+            where cot.IdEnvio == idEnvio && !cot.Descartada
+            join transportista in _db.Transportistas
+                on cot.IdTransportista equals transportista.IdTransportista
+            join tarifa in _db.TarifasProveedor
+                on cot.IdTarifaProveedor equals tarifa.IdTarifaProveedor
+            join ruta in _db.Rutas
+                on tarifa.IdRuta equals ruta.IdRuta
+            orderby cot.PrecioProveedor
+            select new OpcionCotizacionDto
+            {
+                IdOpcion = cot.IdOpcion,
+                IdTransportista = cot.IdTransportista,
+                NombreTransportista = transportista.RazonSocial,
+                PrecioReferencial = cot.PrecioProveedor ?? 0,
+                PrecioEsEstimado = cot.PrecioEsEstimado,
+                FrecuenciaSalidas = cot.FrecuenciaSalidas,
+                AceptaFragil = ruta.AceptaFragil,
+                VigenteHasta = cot.VigenteHasta
+            };
+
+        return await query.AsNoTracking().ToListAsync();
+    }
+}
+</file>
+
+<file path="Mediador.Infrastructure/Repositories/EnvioRepository.cs">
+using Mediador.ApplicationCore.Dtos;
+using Mediador.ApplicationCore.Interfaces;
+using Mediador.ApplicationCore.Utilidades;
+using Mediador.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+
+namespace Mediador.Infrastructure.Repositories;
+
+public class EnvioRepository : IEnvioRepository
+{
+    private readonly MediadorDbContext _db;
+
+    public EnvioRepository(MediadorDbContext db)
+    {
+        _db = db;
+    }
+
+    public async Task<EnvioResumenDto?> BuscarPorIdCorrelacion(string idCorrelacion)
+    {
+        var envio = await _db.Envios.AsNoTracking()
+            .FirstOrDefaultAsync(e => e.IdCorrelacion == idCorrelacion);
+
+        if (envio is null)
+        {
+            return null;
+        }
+
+        return new EnvioResumenDto
+        {
+            IdEnvio = envio.IdEnvio,
+            Estado = envio.Estado,
+            PesoTotalKg = envio.PesoTotalKg,
+            CantidadPaquetes = envio.CantidadPaquetes
+        };
+    }
+
+    public async Task<int> CrearEnvioCotizado(CotizarRequestDto request, decimal pesoTotalKg, int cantidadPaquetes)
+    {
+        var ahora = RelojLima.Ahora();
+
+        var envio = new Models.Envio
+        {
+            IdCorrelacion = request.IdCorrelacion,
+            IdEnvioCourier = request.IdEnvioCourier,
+            IdCourier = request.IdCourier,
+            UbigeoOrigen = request.UbigeoOrigen,
+            UbigeoDestino = request.UbigeoDestino,
+            TipoCarga = request.TipoCarga,
+            PesoTotalKg = pesoTotalKg,
+            CantidadPaquetes = cantidadPaquetes,
+            Estado = "COTIZADO",
+            FechaRegistro = ahora
+        };
+        _db.Envios.Add(envio);
+
+        // Se guarda primero para tener el IdEnvio (identity) que necesitan
+        // los paquetes y el estado inicial.
+        await _db.SaveChangesAsync();
+
+        foreach (var paquete in request.Paquetes)
+        {
+            _db.EnvioPaquetes.Add(new Models.EnvioPaquete
+            {
+                IdEnvio = envio.IdEnvio,
+                Descripcion = paquete.Descripcion,
+                PesoKg = paquete.PesoKg,
+                Cantidad = paquete.Cantidad,
+                EsFragil = paquete.EsFragil
+            });
+        }
+
+        _db.EnvioEstados.Add(new Models.EnvioEstado
+        {
+            IdEnvio = envio.IdEnvio,
+            Estado = "COTIZADO",
+            FechaEstado = ahora,
+            Origen = "MEDIADOR"
+        });
+
+        await _db.SaveChangesAsync();
+
+        return envio.IdEnvio;
+    }
+}
+</file>
+
+<file path="Mediador.Infrastructure/Repositories/TransportistaCotizableRepository.cs">
+using Mediador.ApplicationCore.Dtos;
+using Mediador.ApplicationCore.Interfaces;
+using Mediador.ApplicationCore.Utilidades;
+using Mediador.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+
+namespace Mediador.Infrastructure.Repositories;
+
+public class TransportistaCotizableRepository : ITransportistaCotizableRepository
+{
+    private readonly MediadorDbContext _db;
+
+    public TransportistaCotizableRepository(MediadorDbContext db)
+    {
+        _db = db;
+    }
+
+    public async Task<IReadOnlyList<int>> ObtenerIdsConConvenioActivo(int idCourier)
+    {
+        var hoy = DateOnly.FromDateTime(RelojLima.Ahora().Date);
+
+        return await _db.Convenios.AsNoTracking()
+            .Where(c => c.IdCourier == idCourier && c.Activo && (c.FechaFin == null || c.FechaFin >= hoy))
+            .Select(c => c.IdTransportista)
+            .Distinct()
+            .ToListAsync();
+    }
+
+    public async Task<IReadOnlyList<TransportistaCandidataDto>> ObtenerCandidatasConRuta(
+        int idCourier, string? ubigeoOrigen, string ubigeoDestino)
+    {
+        var hoy = DateOnly.FromDateTime(RelojLima.Ahora().Date);
+
+        var query =
+            from convenio in _db.Convenios
+            where convenio.IdCourier == idCourier
+                  && convenio.Activo
+                  && (convenio.FechaFin == null || convenio.FechaFin >= hoy)
+            join transportista in _db.Transportistas
+                on convenio.IdTransportista equals transportista.IdTransportista
+            where transportista.Activo
+            join ruta in _db.Rutas
+                on transportista.IdTransportista equals ruta.IdTransportista
+            where ruta.Activa
+                  && ruta.UbigeoDestino == ubigeoDestino
+                  && (ubigeoOrigen == null || ruta.UbigeoOrigen == ubigeoOrigen)
+            select new TransportistaCandidataDto
+            {
+                IdTransportista = transportista.IdTransportista,
+                RazonSocial = transportista.RazonSocial,
+                IdRuta = ruta.IdRuta,
+                AceptaFragil = ruta.AceptaFragil,
+                PesoMaximoKg = ruta.PesoMaximoKg,
+                FrecuenciaSalidas = ruta.FrecuenciaSalidas
+            };
+
+        return await query.AsNoTracking().ToListAsync();
+    }
+
+    public async Task<TarifaTramoDto?> BuscarTramo(int idRuta, string tipoCarga, decimal pesoTotalKg)
+    {
+        var tarifa = await _db.TarifasProveedor.AsNoTracking()
+            .Where(t => t.IdRuta == idRuta
+                        && t.TipoCarga == tipoCarga
+                        && t.Activo
+                        && pesoTotalKg >= t.PesoDesdeKg
+                        && pesoTotalKg <= t.PesoHastaKg)
+            .FirstOrDefaultAsync();
+
+        if (tarifa is null)
+        {
+            return null;
+        }
+
+        return new TarifaTramoDto
+        {
+            IdTarifaProveedor = tarifa.IdTarifaProveedor,
+            Precio = tarifa.Precio,
+            PrecioMinimo = tarifa.PrecioMinimo
+        };
+    }
+}
+</file>
+
+<file path="Mediador.Infrastructure/Mediador.Infrastructure.csproj">
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.12" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mediador.ApplicationCore\Mediador.ApplicationCore.csproj" />
+  </ItemGroup>
+
+</Project>
+</file>
+
+<file path="Mediador.Presentation/Controllers/CotizarController.cs">
+using Mediador.ApplicationCore.Dtos;
+using Mediador.ApplicationCore.Interfaces;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Mediador.Presentation.Controllers;
+
+[ApiController]
+[Route("cotizar")]
+public class CotizarController : ControllerBase
+{
+    private readonly ICotizacionMediadorService _servicio;
+
+    public CotizarController(ICotizacionMediadorService servicio)
+    {
+        _servicio = servicio;
+    }
+
+
+    [HttpPost]
+    public async Task<IActionResult> Post([FromBody] CotizarRequestDto request)
+    {
+        var resultado = await _servicio.Cotizar(request);
+
+        if (resultado.EstadoConflicto is not null)
+        {
+            return Conflict(new
+            {
+                idCorrelacion = request.IdCorrelacion,
+                estadoActual = resultado.EstadoConflicto,
+                mensaje = "Ya existe un envío con este idCorrelacion en un estado distinto de COTIZADO."
+            });
+        }
+
+        return Ok(resultado.Respuesta);
+    }
+}
+</file>
+
+<file path="Mediador.Presentation/Properties/launchSettings.json">
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "applicationUrl": "http://localhost:5250",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "https": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "applicationUrl": "https://localhost:7250;http://localhost:5250",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+</file>
+
+<file path="Mediador.Presentation/appsettings.Development.json">
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}
+</file>
+
+<file path="Mediador.Presentation/appsettings.json">
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "MediadorDev": "Server=localhost;Database=MediadorDev;Trusted_Connection=True;TrustServerCertificate=True;"
+  }
+}
+</file>
+
+<file path="Mediador.Presentation/Mediador.Presentation.csproj">
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mediador.ApplicationCore\Mediador.ApplicationCore.csproj" />
+    <ProjectReference Include="..\Mediador.Infrastructure\Mediador.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
+</file>
+
+<file path="Mediador.Presentation/Program.cs">
+using System.Text.Json.Serialization;
+using Mediador.ApplicationCore.Interfaces;
+using Mediador.ApplicationCore.Services;
+using Mediador.Infrastructure.Clientes;
+using Mediador.Infrastructure.Data;
+using Mediador.Infrastructure.Repositories;
+using Microsoft.EntityFrameworkCore;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.Never;
+    });
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+builder.Services.AddDbContext<MediadorDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("MediadorDev")));
+
+builder.Services.AddScoped<IEnvioRepository, EnvioRepository>();
+builder.Services.AddScoped<ITransportistaCotizableRepository, TransportistaCotizableRepository>();
+builder.Services.AddScoped<ICotizacionRepository, CotizacionRepository>();
+builder.Services.AddScoped<ICotizacionMediadorService, CotizacionMediadorService>();
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<ISimuladorTransportistaClient, SimuladorTransportistaClient>();
+
+var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseAuthorization();
+app.MapControllers();
+
+app.Run();
+</file>
+
+<file path=".gitignore">
+bin/
+obj/
+*.user
+.vs/
+</file>
+
+<file path="Mediador.sln">
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.9.34728.123
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mediador.ApplicationCore", "Mediador.ApplicationCore\Mediador.ApplicationCore.csproj", "{E57B1893-420D-4DD6-9AAB-BCA4050BCAC6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mediador.Infrastructure", "Mediador.Infrastructure\Mediador.Infrastructure.csproj", "{5A3A8D98-D77B-4386-A7C7-6CAF9AE978FE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mediador.Presentation", "Mediador.Presentation\Mediador.Presentation.csproj", "{9375E2A7-9D5E-4C58-83DF-BCDBDFD68B3C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E57B1893-420D-4DD6-9AAB-BCA4050BCAC6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E57B1893-420D-4DD6-9AAB-BCA4050BCAC6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E57B1893-420D-4DD6-9AAB-BCA4050BCAC6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E57B1893-420D-4DD6-9AAB-BCA4050BCAC6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5A3A8D98-D77B-4386-A7C7-6CAF9AE978FE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5A3A8D98-D77B-4386-A7C7-6CAF9AE978FE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5A3A8D98-D77B-4386-A7C7-6CAF9AE978FE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5A3A8D98-D77B-4386-A7C7-6CAF9AE978FE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9375E2A7-9D5E-4C58-83DF-BCDBDFD68B3C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9375E2A7-9D5E-4C58-83DF-BCDBDFD68B3C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9375E2A7-9D5E-4C58-83DF-BCDBDFD68B3C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9375E2A7-9D5E-4C58-83DF-BCDBDFD68B3C}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
+</file>
+
+</files>
