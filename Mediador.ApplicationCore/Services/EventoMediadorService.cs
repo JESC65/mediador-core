@@ -124,6 +124,11 @@ public class EventoMediadorService : IEventoMediadorService
             return estadoActual != "ENTREGADO" && OrdenEstados.Contains(estadoActual);
         }
 
+        if (nuevoEstado == "EN_VIAJE")
+        {
+            return estadoActual is "CONFIRMADO" or "ENTREGADO_A_TRANSPORTISTA";
+        }
+
         var indiceActual = OrdenEstados.IndexOf(estadoActual);
         var indiceNuevo = OrdenEstados.IndexOf(nuevoEstado);
 

@@ -106,5 +106,11 @@ public class MediadorDbContext : DbContext
             e.HasKey(x => x.IdEventoRecibido);
             e.Property(x => x.IdEventoRecibido).ValueGeneratedOnAdd();
         });
+        modelBuilder.Entity<EnvioPersona>(e =>
+        {
+            e.ToTable("EnvioPersona", "MED");
+            e.HasKey(x => x.IdEnvioPersona);
+            e.Property(x => x.IdEnvioPersona).ValueGeneratedOnAdd();
+        });
     }
 }
