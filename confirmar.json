@@ -1,0 +1,20 @@
+{
+  "idCorrelacion": "COU-2026-09-28-LUN13",
+  "idOpcion": "OPT-57D96C",
+  "remitente": {
+    "tipoDocumento": "DNI",
+    "numeroDocumento": "45678912",
+    "nombres": "Ana María",
+    "apellidos": "Rojas Pérez",
+    "telefono": "987654321"
+  },
+  "consignado": {
+    "tipoDocumento": "DNI",
+    "numeroDocumento": "10293847",
+    "nombres": "Luis",
+    "apellidos": "Quispe Mamani",
+    "telefono": "912345678",
+    "direccion": "Av. Los Álamos 234",
+    "ubigeo": "130101"
+  }
+}

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Mediador.ApplicationCore.Dtos;
 using Mediador.ApplicationCore.Dtos.Simulador;
 using Mediador.ApplicationCore.Interfaces;
@@ -12,6 +13,15 @@ public class ConfirmacionMediadorService : IConfirmacionMediadorService
     // orquesta CUÁNTAS veces reintentar y CUÁNTO esperar entre intentos.
     private static readonly int[] EsperasEntreReintentosSegundos = { 2, 5, 10 };
 
+    // Candado en memoria por IdEnvio: evita que dos confirmaciones casi
+    // simultáneas del mismo envío pasen ambas los pasos 1-7 a la vez.
+    // Vale solo mientras haya UNA sola instancia del Mediador corriendo —
+    // si algún día hay varias instancias detrás de un balanceador, esto
+    // tiene que pasar a un candado en base de datos (ej. sp_getapplock).
+    // El diccionario crece con cada envío nuevo y nunca se limpia; para el
+    // volumen actual no es un problema, pero queda anotado.
+    private static readonly ConcurrentDictionary<int, SemaphoreSlim> _candados = new();
+
     private readonly IConfirmacionRepository _confirmacionRepositorio;
     private readonly ISimuladorTransportistaClient _simulador;
 
@@ -25,11 +35,39 @@ public class ConfirmacionMediadorService : IConfirmacionMediadorService
 
     public async Task<ConfirmarResponseDto?> Confirmar(ConfirmarRequestDto request)
     {
-        var candidata = await _confirmacionRepositorio.BuscarPorIdOpcion(request.IdOpcion);
-        if (candidata is null)
+        // Primera lectura: solo para saber cuál es el IdEnvio y así poder
+        // ubicar el candado correcto. Si el idOpcion no existe, no hay nada
+        // que bloquear.
+        var candidataInicial = await _confirmacionRepositorio.BuscarPorIdOpcion(request.IdOpcion);
+        if (candidataInicial is null)
         {
             return null; // el controlador responde 404
         }
+
+        var candado = _candados.GetOrAdd(candidataInicial.IdEnvio, _ => new SemaphoreSlim(1, 1));
+        await candado.WaitAsync();
+        try
+        {
+            // Se vuelve a leer AQUÍ, ya con el candado tomado. Si esta
+            // petición esperó porque otra confirmación del mismo envío iba
+            // primero, esta relectura ya ve el resultado de esa otra
+            // (CodigoSeguimiento puesto, si terminó bien) — la lectura de
+            // arriba, en cambio, pudo haber sido tomada antes de que la
+            // otra terminara, y por eso no basta.
+            var candidata = await _confirmacionRepositorio.BuscarPorIdOpcion(request.IdOpcion) ?? candidataInicial;
+            return await EjecutarConfirmacion(request, candidata);
+        }
+        finally
+        {
+            candado.Release();
+        }
+    }
+
+    private async Task<ConfirmarResponseDto> EjecutarConfirmacion(ConfirmarRequestDto request, CotizacionParaConfirmarDto candidataEncontrada)
+    {
+        // Nullable a partir de acá: el bucle de abajo la reasigna a null cuando
+        // se agotan las alternativas (ObtenerSiguienteAlternativa devuelve null).
+        CotizacionParaConfirmarDto? candidata = candidataEncontrada;
 
         // Paso 1 — Idempotencia: si el envío de esta opción ya tiene código, no se crea nada nuevo.
         // Simplificación: se informa con los datos de ESTA opción (transportista/precio), asumiendo
