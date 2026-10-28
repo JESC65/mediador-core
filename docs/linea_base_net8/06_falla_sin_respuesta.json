@@ -1,0 +1,24 @@
+{
+  "Request": {
+    "headers": {
+      "X-Escenario": "SIN_RESPUESTA"
+    },
+    "idCorrelacion": "SIM-TEST-SIN-RESPUESTA",
+    "idRuta": "R-LIM-TRU",
+    "tipoCarga": "CARGA_LIVIANA",
+    "paquetes": [
+      {
+        "pesoKg": 4.5,
+        "largoCm": 40.0,
+        "anchoCm": 30.0,
+        "altoCm": 15.0,
+        "esFragil": false
+      }
+    ]
+  },
+  "Response": {
+    "statusCode": 408,
+    "error": "TIMEOUT",
+    "descripcion": "La conexión expiró sin recibir respuesta del servidor (EmptyResult tras Task.Delay infinito en el Simulador)"
+  }
+}

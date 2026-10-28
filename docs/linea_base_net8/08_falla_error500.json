@@ -1,0 +1,24 @@
+{
+  "Request": {
+    "headers": {
+      "X-Escenario": "ERROR_500"
+    },
+    "idCorrelacion": "SIM-TEST-ERROR-500",
+    "idRuta": "R-LIM-TRU",
+    "tipoCarga": "CARGA_LIVIANA",
+    "paquetes": [
+      {
+        "pesoKg": 4.5,
+        "largoCm": 40.0,
+        "anchoCm": 30.0,
+        "altoCm": 15.0,
+        "esFragil": false
+      }
+    ]
+  },
+  "Response": {
+    "statusCode": 500,
+    "error": "INTERNAL_SERVER_ERROR",
+    "descripcion": "HTTP 500 Internal Server Error forzado por el simulador (StatusCode(500))"
+  }
+}
