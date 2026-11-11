@@ -16,7 +16,7 @@ Documento de seguimiento de tareas, pendientes técnicos y pruebas de aseguramie
 | 6 | Sin empezar | No se encontró script SQL para MED.Tb_EnvioMediador en el Conector Courier (solo existe mapeo de entidad en CourierDbContext) | Crear script DDL SQL para generar el esquema MED y la tabla MED.Tb_EnvioMediador en Dbcourier_dev |
 | 7 | Cerrado | Por decisión: el Courier nuevo llamará directo al Mediador (sin código) | Nada |
 | 8 | Sin empezar | No existen controladores ni métodos de servicio para Entrega física (A2c) ni Anulación (A4 y B5) | Implementar endpoints y lógica de negocio para entrega física (A2c) y anulación hacia transportistas (A4 y B5) |
-| 9 | Sin empezar | PruebaSimuladorController no cuenta con #if DEBUG ni restricción por ambiente; responde incondicionalmente | Proteger o excluir los endpoints de prueba en entornos productivos (#if DEBUG o IHostEnvironment.IsDevelopment) |
+| 9 | Cerrado | PruebaSimuladorController no cuenta con #if DEBUG ni restricción por ambiente; responde incondicionalmente | Controlador eliminado el 11-nov-2026 por decisión del responsable técnico |
 | 10 | Sin empezar | La API responde HTTP 200 a peticiones sin clave; no existe validación ni middleware de API Key | Implementar autenticación obligatoria por API Key (X-API-Key) para clientes autorizados |
 | 11 | Sin empezar | Controladores exponen rutas planas (/cotizar, /confirmar, etc.) sin prefijo /v1/ | Versionar los endpoints anteponiendo /v1/ en los Route attributes o convención global |
 | 12 | Cerrado | READMEs actualizados en los 3 repositorios (hoy) | Nada |
@@ -149,6 +149,7 @@ Documento de seguimiento de tareas, pendientes técnicos y pruebas de aseguramie
   - Las rutas `POST /prueba/simulador/{idTransportista}/cotizar` y `POST /prueba/simulador/{idTransportista}/registrar` están expuestas de forma pública e incondicional.
   - No existe directiva `#if DEBUG`, verificación de entorno (`IHostEnvironment.IsDevelopment()`) ni filtros de autorización que restrinjan su consumo.
 - **Veredicto QA**: **Pendiente / Sin empezar**.
+- **Resolución**: PruebaSimuladorController eliminado; las rutas /prueba/simulador/... ya no existen.
 
 ---
 
@@ -172,7 +173,7 @@ Documento de seguimiento de tareas, pendientes técnicos y pruebas de aseguramie
 - **Mecanismo Evaluado**:
   - Atributos `[Route(...)]` en todos los controladores de [Mediador.Presentation/Controllers](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Presentation/Controllers).
 - **Resultados Obtenidos**:
-  - Los controladores definen rutas raíz sin versionar: `[Route("cotizar")]`, `[Route("confirmar")]`, `[Route("eventos")]`, `[Route("envio")]` y `[Route("prueba/simulador")]`.
+  - Los controladores definen rutas raíz sin versionar: `[Route("cotizar")]`, `[Route("confirmar")]`, `[Route("eventos")]` y `[Route("envio")]`.
   - Ninguna ruta incluye el prefijo `/v1/`.
 - **Veredicto QA**: **Pendiente / Sin empezar**.
 
