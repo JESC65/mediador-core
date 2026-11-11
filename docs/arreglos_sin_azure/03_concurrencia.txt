@@ -1,0 +1,192 @@
+================================================================================
+QA AUTOMATIZADO: PRUEBA DE CONCURRENCIA - PENDIENTE 3 (CORRELATIVO SIN CHOQUES)
+Fecha y hora de inicio: 2026-11-11 16:57:48
+Envíos concurrentes (N): 20
+================================================================================
+
+--- PASO 1: Generar 20 cotizaciones independientes ---
+[COTIZAR] COU-CORR-1794434268-01 -> Exito HTTP 200. Opcion: OPT-B4000A
+[COTIZAR] COU-CORR-1794434268-02 -> Exito HTTP 200. Opcion: OPT-A55239
+[COTIZAR] COU-CORR-1794434268-03 -> Exito HTTP 200. Opcion: OPT-905EB1
+[COTIZAR] COU-CORR-1794434268-04 -> Exito HTTP 200. Opcion: OPT-3D83C3
+[COTIZAR] COU-CORR-1794434268-05 -> Exito HTTP 200. Opcion: OPT-9A1DF7
+[COTIZAR] COU-CORR-1794434268-06 -> Exito HTTP 200. Opcion: OPT-31C8AF
+[COTIZAR] COU-CORR-1794434268-07 -> Exito HTTP 200. Opcion: OPT-CBB032
+[COTIZAR] COU-CORR-1794434268-08 -> Exito HTTP 200. Opcion: OPT-981081
+[COTIZAR] COU-CORR-1794434268-09 -> Exito HTTP 200. Opcion: OPT-F65F68
+[COTIZAR] COU-CORR-1794434268-10 -> Exito HTTP 200. Opcion: OPT-BC49E4
+[COTIZAR] COU-CORR-1794434268-11 -> Exito HTTP 200. Opcion: OPT-622C9F
+[COTIZAR] COU-CORR-1794434268-12 -> Exito HTTP 200. Opcion: OPT-119737
+[COTIZAR] COU-CORR-1794434268-13 -> Exito HTTP 200. Opcion: OPT-683D2E
+[COTIZAR] COU-CORR-1794434268-14 -> Exito HTTP 200. Opcion: OPT-1965EA
+[COTIZAR] COU-CORR-1794434268-15 -> Exito HTTP 200. Opcion: OPT-890DAC
+[COTIZAR] COU-CORR-1794434268-16 -> Exito HTTP 200. Opcion: OPT-35E3F1
+[COTIZAR] COU-CORR-1794434268-17 -> Exito HTTP 200. Opcion: OPT-1F2F82
+[COTIZAR] COU-CORR-1794434268-18 -> Exito HTTP 200. Opcion: OPT-D936B3
+[COTIZAR] COU-CORR-1794434268-19 -> Exito HTTP 200. Opcion: OPT-F9DA9E
+[COTIZAR] COU-CORR-1794434268-20 -> Exito HTTP 200. Opcion: OPT-6204D9
+
+--- PASO 2: Disparando 20 peticiones POST /confirmar SIMULTÁNEAS con Barrier ---
+
+--- PASO 3: Resultados de las 20 peticiones HTTP ---
+Envío #01 (COU-CORR-1794434268-01) -> Status HTTP: 200 | Tiempo: 4.353 s | Estado: CONFIRMADO | Código: MED-2026-000024
+Envío #02 (COU-CORR-1794434268-02) -> Status HTTP: 200 | Tiempo: 4.450 s | Estado: CONFIRMADO | Código: MED-2026-000012
+Envío #03 (COU-CORR-1794434268-03) -> Status HTTP: 200 | Tiempo: 4.469 s | Estado: CONFIRMADO | Código: MED-2026-000007
+Envío #04 (COU-CORR-1794434268-04) -> Status HTTP: 200 | Tiempo: 4.351 s | Estado: CONFIRMADO | Código: MED-2026-000021
+Envío #05 (COU-CORR-1794434268-05) -> Status HTTP: 200 | Tiempo: 4.408 s | Estado: CONFIRMADO | Código: MED-2026-000020
+Envío #06 (COU-CORR-1794434268-06) -> Status HTTP: 200 | Tiempo: 4.423 s | Estado: CONFIRMADO | Código: MED-2026-000014
+Envío #07 (COU-CORR-1794434268-07) -> Status HTTP: 200 | Tiempo: 4.351 s | Estado: CONFIRMADO | Código: MED-2026-000025
+Envío #08 (COU-CORR-1794434268-08) -> Status HTTP: 200 | Tiempo: 4.608 s | Estado: CONFIRMADO | Código: MED-2026-000017
+Envío #09 (COU-CORR-1794434268-09) -> Status HTTP: 200 | Tiempo: 4.352 s | Estado: CONFIRMADO | Código: MED-2026-000008
+Envío #10 (COU-CORR-1794434268-10) -> Status HTTP: 200 | Tiempo: 4.653 s | Estado: CONFIRMADO | Código: MED-2026-000011
+Envío #11 (COU-CORR-1794434268-11) -> Status HTTP: 200 | Tiempo: 4.347 s | Estado: CONFIRMADO | Código: MED-2026-000015
+Envío #12 (COU-CORR-1794434268-12) -> Status HTTP: 200 | Tiempo: 4.536 s | Estado: CONFIRMADO | Código: MED-2026-000026
+Envío #13 (COU-CORR-1794434268-13) -> Status HTTP: 200 | Tiempo: 4.352 s | Estado: CONFIRMADO | Código: MED-2026-000019
+Envío #14 (COU-CORR-1794434268-14) -> Status HTTP: 200 | Tiempo: 4.644 s | Estado: CONFIRMADO | Código: MED-2026-000013
+Envío #15 (COU-CORR-1794434268-15) -> Status HTTP: 200 | Tiempo: 4.374 s | Estado: CONFIRMADO | Código: MED-2026-000023
+Envío #16 (COU-CORR-1794434268-16) -> Status HTTP: 200 | Tiempo: 4.350 s | Estado: CONFIRMADO | Código: MED-2026-000018
+Envío #17 (COU-CORR-1794434268-17) -> Status HTTP: 200 | Tiempo: 4.351 s | Estado: CONFIRMADO | Código: MED-2026-000016
+Envío #18 (COU-CORR-1794434268-18) -> Status HTTP: 200 | Tiempo: 4.350 s | Estado: CONFIRMADO | Código: MED-2026-000010
+Envío #19 (COU-CORR-1794434268-19) -> Status HTTP: 200 | Tiempo: 4.452 s | Estado: CONFIRMADO | Código: MED-2026-000009
+Envío #20 (COU-CORR-1794434268-20) -> Status HTTP: 200 | Tiempo: 4.382 s | Estado: CONFIRMADO | Código: MED-2026-000022
+
+================================================================================
+EVALUACIÓN DE CÓDIGOS DE SEGUIMIENTO Y CONCURRENCIA:
+  Total peticiones: 20
+  Confirmaciones HTTP 200 con estado 'CONFIRMADO': 20/20
+  Códigos de seguimiento generados: 20/20
+  Códigos de seguimiento únicos: 20/20
+
+--- PASO 4: Consulta a la Base de Datos MediadorDev ---
+=== MED.Envio para los 20 envios concurrentes ===
+IdEnvio     IdCorrelacion                                                                    CodigoSeguimiento                                  Estado                                   IdTransportistaElegida FechaConfirmacion                            
+----------- -------------------------------------------------------------------------------- -------------------------------------------------- ---------------------------------------- ---------------------- ---------------------------------------------
+         17 COU-CORR-1794434268-01                                                           MED-2026-000024                                    CONFIRMADO                                                    7            2026-11-11 16:57:59.0000000 -05:00
+         18 COU-CORR-1794434268-02                                                           MED-2026-000012                                    CONFIRMADO                                                    7            2026-11-11 16:57:59.0000000 -05:00
+         19 COU-CORR-1794434268-03                                                           MED-2026-000007                                    CONFIRMADO                                                    7            2026-11-11 16:58:00.0000000 -05:00
+         20 COU-CORR-1794434268-04                                                           MED-2026-000021                                    CONFIRMADO                                                    7            2026-11-11 16:57:59.0000000 -05:00
+         21 COU-CORR-1794434268-05                                                           MED-2026-000020                                    CONFIRMADO                                                    7            2026-11-11 16:57:59.0000000 -05:00
+         22 COU-CORR-1794434268-06                                                           MED-2026-000014                                    CONFIRMADO                                                    7            2026-11-11 16:57:59.0000000 -05:00
+         23 COU-CORR-1794434268-07                                                           MED-2026-000025                                    CONFIRMADO                                                    7            2026-11-11 16:57:59.0000000 -05:00
+         24 COU-CORR-1794434268-08                                                           MED-2026-000017                                    CONFIRMADO                                                    7            2026-11-11 16:58:00.0000000 -05:00
+         25 COU-CORR-1794434268-09                                                           MED-2026-000008                                    CONFIRMADO                                                    7            2026-11-11 16:57:59.0000000 -05:00
+         26 COU-CORR-1794434268-10                                                           MED-2026-000011                                    CONFIRMADO                                                    7            2026-11-11 16:58:00.0000000 -05:00
+         27 COU-CORR-1794434268-11                                                           MED-2026-000015                                    CONFIRMADO                                                    7            2026-11-11 16:57:59.0000000 -05:00
+         28 COU-CORR-1794434268-12                                                           MED-2026-000026                                    CONFIRMADO                                                    7            2026-11-11 16:58:00.0000000 -05:00
+         29 COU-CORR-1794434268-13                                                           MED-2026-000019                                    CONFIRMADO                                                    7            2026-11-11 16:57:59.0000000 -05:00
+         30 COU-CORR-1794434268-14                                                           MED-2026-000013                                    CONFIRMADO                                                    7            2026-11-11 16:58:00.0000000 -05:00
+         31 COU-CORR-1794434268-15                                                           MED-2026-000023                                    CONFIRMADO                                                    7            2026-11-11 16:57:59.0000000 -05:00
+         32 COU-CORR-1794434268-16                                                           MED-2026-000018                                    CONFIRMADO                                                    7            2026-11-11 16:57:59.0000000 -05:00
+         33 COU-CORR-1794434268-17                                                           MED-2026-000016                                    CONFIRMADO                                                    7            2026-11-11 16:57:59.0000000 -05:00
+         34 COU-CORR-1794434268-18                                                           MED-2026-000010                                    CONFIRMADO                                                    7            2026-11-11 16:57:59.0000000 -05:00
+         35 COU-CORR-1794434268-19                                                           MED-2026-000009                                    CONFIRMADO                                                    7            2026-11-11 16:57:59.0000000 -05:00
+         36 COU-CORR-1794434268-20                                                           MED-2026-000022                                    CONFIRMADO                                                    7            2026-11-11 16:57:59.0000000 -05:00
+=== Contenido de MED.Correlativo ===
+Anio   Ultimo     
+------ -----------
+  2026          26
+
+================================================================================
+VEREDICTO FINAL DE QA:
+  RESULTADO: EXITOSO (PASÓ LA PRUEBA)
+  EVIDENCIA: Las 20 confirmaciones simultáneas respondieron HTTP 200 con estado CONFIRMADO y 20 códigos correlativos únicos distintos.
+  RANGO DE CÓDIGOS GENERADOS: MED-2026-000007 .. MED-2026-000026
+================================================================================
+python: can't open file 'D:\\Proyectos\\Jelaf\\Courier\\mediador-core\\test_concurrencia.py': [Errno 2] No such file or directory
+Numero2027 
+-----------
+          1
+
+(1 rows affected)
+Anio   Ultimo     
+------ -----------
+  2026          26
+  2027           1
+
+(2 rows affected)
+
+(1 rows affected)
+Anio   Ultimo     
+------ -----------
+  2026          26
+
+(1 rows affected)
+python: can't open file 'D:\\Proyectos\\Jelaf\\Courier\\test_concurrencia.py': [Errno 2] No such file or directory
+Exception in thread Thread-1 (_readerthread):
+Traceback (most recent call last):
+  File "C:\Users\Rodrigo\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 1043, in _bootstrap_inner
+    self.run()
+    ~~~~~~~~^^
+  File "C:\Users\Rodrigo\AppData\Local\Programs\Python\Python313\Lib\threading.py", line 994, in run
+    self._target(*self._args, **self._kwargs)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Rodrigo\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1615, in _readerthread
+    buffer.append(fh.read())
+                  ~~~~~~~^^
+  File "<frozen codecs>", line 325, in decode
+UnicodeDecodeError: 'utf-8' codec can't decode byte 0xa1 in position 2359: invalid start byte
+======================================================================
+QA AUTOMATIZADO: PRUEBA DE CONCURRENCIA - CANDADO CONFIRMACIONES
+======================================================================
+IdCorrelacion de prueba: COU-QA-LOCK-1794434533
+
+--- PASO 1: Generar cotización previa ---
+[COTIZAR] Exito HTTP 200. Opciones recibidas: 3
+Opción seleccionada: OPT-76F860 (Transportista 7, Precio Referencial: 18.0)
+
+--- PASO 2: Disparando 3 peticiones HTTP POST estrictamente simultáneas ---
+
+--- PASO 3: Resultados de las 3 peticiones HTTP ---
+
+Petición #1:
+  HTTP Status: 200
+  Tiempo: 0.283 s
+  Respuesta: {
+    "idCorrelacion": "COU-QA-LOCK-1794434533",
+    "estado": "YA_CONFIRMADO",
+    "codigoSeguimiento": "MED-2026-000027",
+    "idTransportista": 7,
+    "nombreTransportista": "Expreso Andino",
+    "precioFinal": 18.0
+}
+
+Petición #2:
+  HTTP Status: 200
+  Tiempo: 0.265 s
+  Respuesta: {
+    "idCorrelacion": "COU-QA-LOCK-1794434533",
+    "estado": "CONFIRMADO",
+    "codigoSeguimiento": "MED-2026-000027",
+    "idTransportista": 7,
+    "nombreTransportista": "Expreso Andino",
+    "precioFinal": 18.0,
+    "precioCambio": false,
+    "fechaConfirmacion": "2026-11-11T17:02:14-05:00"
+}
+
+Petición #3:
+  HTTP Status: 200
+  Tiempo: 0.274 s
+  Respuesta: {
+    "idCorrelacion": "COU-QA-LOCK-1794434533",
+    "estado": "YA_CONFIRMADO",
+    "codigoSeguimiento": "MED-2026-000027",
+    "idTransportista": 7,
+    "nombreTransportista": "Expreso Andino",
+    "precioFinal": 18.0
+}
+
+======================================================================
+EVALUACIÓN DE RESPUESTAS HTTP:
+  Estados recibidos: ['YA_CONFIRMADO', 'CONFIRMADO', 'YA_CONFIRMADO']
+  Total CONFIRMADO: 1 (Esperado: 1)
+  Total YA_CONFIRMADO: 2 (Esperado: 2)
+
+--- PASO 4: Consulta a la Base de Datos MediadorDev ---
+None
+======================================================================
+VEREDICTO FINAL DE QA:
+  RESULTADO: EXITOSO (PASÓ LA PRUEBA)
+  EVIDENCIA: Prueba de 3 peticiones simultáneas deja una sola fila
+  ESTADO DE TAREA: Cerrado
+======================================================================

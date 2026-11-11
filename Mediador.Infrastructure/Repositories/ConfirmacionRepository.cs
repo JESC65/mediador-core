@@ -1,7 +1,9 @@
+using System.Data;
 using Mediador.ApplicationCore.Dtos;
 using Mediador.ApplicationCore.Interfaces;
 using Mediador.ApplicationCore.Utilidades;
 using Mediador.Infrastructure.Data;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace Mediador.Infrastructure.Repositories;
@@ -146,24 +148,20 @@ public class ConfirmacionRepository : IConfirmacionRepository
 
     public async Task<string> GenerarSiguienteCodigoSeguimiento()
     {
-        var anio = RelojLima.Ahora().Year;
-        var prefijo = $"MED-{anio}-";
+        var anio = (short)RelojLima.Ahora().Year;
 
-        // Nota: esto lee el máximo actual y no reserva el número con un
-        // bloqueo — en un solo desarrollador probando no hay condición de
-        // carrera real, pero si esto llega a producción con confirmaciones
-        // concurrentes, conviene reemplazarlo por una secuencia de SQL Server.
-        var existentes = await _db.Envios.AsNoTracking()
-            .Where(e => e.CodigoSeguimiento != null && e.CodigoSeguimiento.StartsWith(prefijo))
-            .Select(e => e.CodigoSeguimiento!)
-            .ToListAsync();
+        // El número sale de MED.SiguienteCorrelativo en su propia transacción corta;
+        // un hueco es aceptable (si la confirmación falla después), un código repetido no.
+        var pAnio = new SqlParameter("@Anio", SqlDbType.SmallInt) { Value = anio };
+        var pNumero = new SqlParameter("@Numero", SqlDbType.Int) { Direction = ParameterDirection.Output };
 
-        var siguienteNumero = existentes
-            .Select(c => int.TryParse(c.AsSpan(prefijo.Length), out var n) ? n : 0)
-            .DefaultIfEmpty(0)
-            .Max() + 1;
+        await _db.Database.ExecuteSqlRawAsync(
+            "EXEC MED.SiguienteCorrelativo @Anio, @Numero OUTPUT",
+            pAnio, pNumero);
 
-        return $"{prefijo}{siguienteNumero:D6}";
+        var numero = (int)pNumero.Value;
+
+        return $"MED-{anio}-{numero:D6}";
     }
 
     public async Task<bool> ConfirmarTransaccional(
