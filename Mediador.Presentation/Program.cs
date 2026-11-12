@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Mediador.ApplicationCore.Interfaces;
 using Mediador.ApplicationCore.Services;
+using Mediador.ApplicationCore.Utilidades;
 using Mediador.Infrastructure.Clientes;
 using Mediador.Infrastructure.Data;
 using Mediador.Infrastructure.Repositories;
@@ -18,6 +19,14 @@ builder.Services
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+builder.Services.AddOptions<ParametrosOptions>()
+    .BindConfiguration(ParametrosOptions.Seccion)
+    .Validate(p => p.t_precio_eett > TimeSpan.Zero, "t_precio_eett debe ser mayor a TimeSpan.Zero.")
+    .Validate(p => p.t_registro_eett > TimeSpan.Zero, "t_registro_eett debe ser mayor a TimeSpan.Zero.")
+    .Validate(p => p.t_vigencia_cotizacion > TimeSpan.Zero, "t_vigencia_cotizacion debe ser mayor a TimeSpan.Zero.")
+    .Validate(p => p.r_esperas_sincronas is not null && p.r_esperas_sincronas.Length > 0 && p.r_esperas_sincronas.All(t => t > TimeSpan.Zero), "r_esperas_sincronas no puede ser nulo, debe tener al menos un elemento y todos sus tiempos deben ser mayores a TimeSpan.Zero.")
+    .ValidateOnStart();
 
 builder.Services.AddDbContext<MediadorDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("MediadorDev")));

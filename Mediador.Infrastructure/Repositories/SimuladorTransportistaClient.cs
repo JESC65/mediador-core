@@ -1,7 +1,9 @@
 using System.Net.Http.Json;
 using Mediador.ApplicationCore.Dtos.Simulador;
 using Mediador.ApplicationCore.Interfaces;
+using Mediador.ApplicationCore.Utilidades;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Mediador.Infrastructure.Clientes;
 
@@ -15,27 +17,29 @@ namespace Mediador.Infrastructure.Clientes;
 /// </summary>
 public class SimuladorTransportistaClient : ISimuladorTransportistaClient
 {
-    private static readonly TimeSpan EsperaConsultarPrecio = TimeSpan.FromSeconds(15);
-    private static readonly TimeSpan EsperaRegistrar = TimeSpan.FromSeconds(30);
-
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<SimuladorTransportistaClient> _logger;
+    private readonly ParametrosOptions _parametros;
 
-    public SimuladorTransportistaClient(IHttpClientFactory httpClientFactory, ILogger<SimuladorTransportistaClient> logger)
+    public SimuladorTransportistaClient(
+        IHttpClientFactory httpClientFactory,
+        ILogger<SimuladorTransportistaClient> logger,
+        IOptions<ParametrosOptions> parametros)
     {
         _httpClientFactory = httpClientFactory;
         _logger = logger;
+        _parametros = parametros.Value;
     }
 
     public Task<ResultadoLlamadaSimuladorDto<SimuladorCotizarResponseDto>> ConsultarPrecio(
         string urlBaseTransportista, SimuladorCotizarRequestDto request) =>
         Llamar<SimuladorCotizarRequestDto, SimuladorCotizarResponseDto>(
-            urlBaseTransportista, "cotizar", request, EsperaConsultarPrecio);
+            urlBaseTransportista, "cotizar", request, _parametros.t_precio_eett);
 
     public Task<ResultadoLlamadaSimuladorDto<SimuladorRegistrarResponseDto>> Registrar(
         string urlBaseTransportista, SimuladorRegistrarRequestDto request) =>
         Llamar<SimuladorRegistrarRequestDto, SimuladorRegistrarResponseDto>(
-            urlBaseTransportista, "registrar", request, EsperaRegistrar);
+            urlBaseTransportista, "registrar", request, _parametros.t_registro_eett);
 
     private async Task<ResultadoLlamadaSimuladorDto<TRespuesta>> Llamar<TPeticion, TRespuesta>(
         string urlBaseTransportista, string ruta, TPeticion request, TimeSpan esperaMaxima)

@@ -3,16 +3,12 @@ using Mediador.ApplicationCore.Dtos;
 using Mediador.ApplicationCore.Dtos.Simulador;
 using Mediador.ApplicationCore.Interfaces;
 using Mediador.ApplicationCore.Utilidades;
+using Microsoft.Extensions.Options;
 
 namespace Mediador.ApplicationCore.Services;
 
 public class ConfirmacionMediadorService : IConfirmacionMediadorService
 {
-    // 3.3 — Tiempos de espera y reintentos. La espera máxima por intento ya
-    // la aplica ISimuladorTransportistaClient (15s / 30s); acá solo se
-    // orquesta CUÁNTAS veces reintentar y CUÁNTO esperar entre intentos.
-    private static readonly int[] EsperasEntreReintentosSegundos = { 2, 5, 10 };
-
     // Candado en memoria por IdEnvio: evita que dos confirmaciones casi
     // simultáneas del mismo envío pasen ambas los pasos 1-7 a la vez.
     // Vale solo mientras haya UNA sola instancia del Mediador corriendo —
@@ -24,13 +20,16 @@ public class ConfirmacionMediadorService : IConfirmacionMediadorService
 
     private readonly IConfirmacionRepository _confirmacionRepositorio;
     private readonly ISimuladorTransportistaClient _simulador;
+    private readonly ParametrosOptions _parametros;
 
     public ConfirmacionMediadorService(
         IConfirmacionRepository confirmacionRepositorio,
-        ISimuladorTransportistaClient simulador)
+        ISimuladorTransportistaClient simulador,
+        IOptions<ParametrosOptions> parametros)
     {
         _confirmacionRepositorio = confirmacionRepositorio;
         _simulador = simulador;
+        _parametros = parametros.Value;
     }
 
     public async Task<ConfirmarResponseDto?> Confirmar(ConfirmarRequestDto request)
@@ -261,19 +260,19 @@ public class ConfirmacionMediadorService : IConfirmacionMediadorService
     /// Reintenta solo fallas de comunicación (3.3) — una respuesta de negocio
     /// (disponible: false, aceptado: false) no es un motivo para reintentar.
     /// </summary>
-    private static async Task<ResultadoLlamadaSimuladorDto<TRespuesta>> LlamarConReintentos<TRespuesta>(
+    private async Task<ResultadoLlamadaSimuladorDto<TRespuesta>> LlamarConReintentos<TRespuesta>(
         Func<Task<ResultadoLlamadaSimuladorDto<TRespuesta>>> llamada)
     {
         var resultado = await llamada();
 
-        foreach (var espera in EsperasEntreReintentosSegundos)
+        foreach (var espera in _parametros.r_esperas_sincronas)
         {
             if (resultado.Exitosa)
             {
                 break;
             }
 
-            await Task.Delay(TimeSpan.FromSeconds(espera));
+            await Task.Delay(espera);
             resultado = await llamada();
         }
 
