@@ -1,0 +1,21 @@
+=== SimuladorEETT.Presentation (C:\publicado\simulador) ===
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: https://localhost:7201
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5201
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\publicado\simulador
+
+=== Mediador.Presentation (C:\publicado\mediador) ===
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: https://localhost:7250
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\publicado\mediador

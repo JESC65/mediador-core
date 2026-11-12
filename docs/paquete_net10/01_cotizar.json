@@ -1,0 +1,61 @@
+{
+  "Request": {
+    "idCorrelacion": "COU-PRUEBA-001",
+    "idEnvioCourier": "ENV-9021",
+    "idCourier": 1,
+    "ubigeoOrigen": "150101",
+    "ubigeoDestino": "130101",
+    "tipoCarga": "CARGA_LIVIANA",
+    "fechaSolicitud": "2026-10-27T10:00:00-05:00",
+    "paquetes": [
+      {
+        "descripcion": "Caja con laptops y accesorios",
+        "pesoKg": 4.5,
+        "cantidad": 1,
+        "largoCm": 40.0,
+        "anchoCm": 30.0,
+        "altoCm": 15.0,
+        "esFragil": false,
+        "valorDeclarado": 2500.0
+      }
+    ]
+  },
+  "Response": {
+    "idCorrelacion": "COU-PRUEBA-001",
+    "estado": "COTIZADO",
+    "pesoTotalKg": 4.5,
+    "cantidadPaquetes": 1,
+    "opciones": [
+      {
+        "idOpcion": "OPT-9B1BE2",
+        "idTransportista": 8,
+        "nombreTransportista": "Transportes RÃ¡pido Sur",
+        "precioReferencial": 15.3,
+        "precioEsEstimado": true,
+        "frecuenciaSalidas": "Diaria",
+        "aceptaFragil": false,
+        "vigenteHasta": "2026-11-12T17:17:45-05:00"
+      },
+      {
+        "idOpcion": "OPT-B1D67E",
+        "idTransportista": 7,
+        "nombreTransportista": "Expreso Andino",
+        "precioReferencial": 18.0,
+        "precioEsEstimado": true,
+        "frecuenciaSalidas": "Diaria",
+        "aceptaFragil": false,
+        "vigenteHasta": "2026-11-12T17:17:45-05:00"
+      },
+      {
+        "idOpcion": "OPT-CABE28",
+        "idTransportista": 9,
+        "nombreTransportista": "Carga Segura del Norte",
+        "precioReferencial": 22.5,
+        "precioEsEstimado": true,
+        "frecuenciaSalidas": "Diaria",
+        "aceptaFragil": true,
+        "vigenteHasta": "2026-11-12T17:17:45-05:00"
+      }
+    ]
+  }
+}
