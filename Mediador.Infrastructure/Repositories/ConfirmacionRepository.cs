@@ -83,6 +83,7 @@ public class ConfirmacionRepository : IConfirmacionRepository
             .Where(p => p.IdEnvio == idEnvio)
             .Select(p => new PaqueteConfirmarDto
             {
+                Cantidad = p.Cantidad,
                 Descripcion = p.Descripcion,
                 PesoKg = p.PesoKg,
                 LargoCm = p.LargoCm,

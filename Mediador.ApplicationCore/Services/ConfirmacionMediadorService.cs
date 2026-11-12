@@ -128,14 +128,16 @@ public class ConfirmacionMediadorService : IConfirmacionMediadorService
                 IdCorrelacion = ArmarIdCorrelacionSimulador(candidata.IdEnvio),
                 IdRuta = candidata.CodigoRutaExterno,
                 TipoCarga = candidata.TipoCarga,
-                Paquetes = paquetes.Select(p => new SimuladorPaqueteCotizarDto
-                {
-                    PesoKg = p.PesoKg,
-                    LargoCm = p.LargoCm ?? 0,
-                    AnchoCm = p.AnchoCm ?? 0,
-                    AltoCm = p.AltoCm ?? 0,
-                    EsFragil = p.EsFragil
-                }).ToList()
+                Paquetes = paquetes
+                    .SelectMany(p => Enumerable.Repeat(p, Math.Max(p.Cantidad, 1)))
+                    .Select(p => new SimuladorPaqueteCotizarDto
+                    {
+                        PesoKg = p.PesoKg,
+                        LargoCm = p.LargoCm,
+                        AnchoCm = p.AnchoCm,
+                        AltoCm = p.AltoCm,
+                        EsFragil = p.EsFragil
+                    }).ToList()
             };
 
             var resultadoPrecio = await LlamarConReintentos(
@@ -187,13 +189,15 @@ public class ConfirmacionMediadorService : IConfirmacionMediadorService
                 CodigoSeguimiento = codigoSeguimiento,
                 IdRuta = candidata.CodigoRutaExterno,
                 PrecioAcordado = precioReal, // nunca el precio de venta al cliente final
-                Paquetes = paquetes.Select(p => new SimuladorPaqueteRegistroDto
-                {
-                    Descripcion = p.Descripcion ?? string.Empty,
-                    PesoKg = p.PesoKg,
-                    EsFragil = p.EsFragil,
-                    ValorDeclarado = p.ValorDeclarado ?? 0
-                }).ToList(),
+                Paquetes = paquetes
+                    .SelectMany(p => Enumerable.Repeat(p, Math.Max(p.Cantidad, 1)))
+                    .Select(p => new SimuladorPaqueteRegistroDto
+                    {
+                        Descripcion = p.Descripcion ?? string.Empty,
+                        PesoKg = p.PesoKg,
+                        EsFragil = p.EsFragil,
+                        ValorDeclarado = p.ValorDeclarado
+                    }).ToList(),
                 Remitente = MapearPersona(request.Remitente),
                 Consignado = MapearPersona(request.Consignado)
             };

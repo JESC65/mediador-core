@@ -7,8 +7,8 @@ namespace Mediador.ApplicationCore.Dtos.Simulador;
 public class SimuladorPaqueteCotizarDto
 {
     public decimal PesoKg { get; set; }
-    public decimal LargoCm { get; set; }
-    public decimal AnchoCm { get; set; }
-    public decimal AltoCm { get; set; }
+    public decimal? LargoCm { get; set; }
+    public decimal? AnchoCm { get; set; }
+    public decimal? AltoCm { get; set; }
     public bool EsFragil { get; set; }
 }
