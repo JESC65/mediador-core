@@ -10,17 +10,19 @@ Documento de seguimiento de tareas, pendientes técnicos y pruebas de aseguramie
 | :---: | :---: | :--- | :--- |
 | 1 | Sin empezar | A la espera de accesos RDP al servidor de JELAF | Credenciales e instalación |
 | 2 | Cerrado | Prueba de 3 peticiones simultáneas deja una sola fila | Nada |
-| 3 | A medias | Error 500 y colisión de clave única (UQ_Envio_CodigoSeguimiento); dos peticiones simultáneas calculan el mismo código correlativo | Crear SEQUENCE en SQL Server y usar NEXT VALUE FOR en GenerarSiguienteCodigoSeguimiento en vez de MAX()+1 en memoria |
+| 3 | Cerrado | Correlativo atómico por año con tabla MED.Correlativo y SP MED.SiguienteCorrelativo. 20 confirmaciones simultáneas sin choques ni errores 500 en docs/arreglos_sin_azure/03_concurrencia.txt | Nada |
 | 4 | A medias | Modelo de BD tiene columnas en MED.EnvioPaquete, pero API ignora largoCm, anchoCm, altoCm, valorDeclarado y motivo (se guardan NULL) | Agregar campos a PaqueteCotizarDto y CotizarRequestDto, y mapear su persistencia en EnvioRepository |
 | 5 | Cerrado | Documentado en docs/migracion_net10.md (Pasos 7, 8 y 9: PRECIO_DISTINTO, SIN_RESPUESTA y ERROR_500 verificados) | Nada |
 | 6 | Sin empezar | No se encontró script SQL para MED.Tb_EnvioMediador en el Conector Courier (solo existe mapeo de entidad en CourierDbContext) | Crear script DDL SQL para generar el esquema MED y la tabla MED.Tb_EnvioMediador en Dbcourier_dev |
 | 7 | Cerrado | Por decisión: el Courier nuevo llamará directo al Mediador (sin código) | Nada |
 | 8 | Sin empezar | No existen controladores ni métodos de servicio para Entrega física (A2c) ni Anulación (A4 y B5) | Implementar endpoints y lógica de negocio para entrega física (A2c) y anulación hacia transportistas (A4 y B5) |
-| 9 | Cerrado | PruebaSimuladorController no cuenta con #if DEBUG ni restricción por ambiente; responde incondicionalmente | Controlador eliminado el 11-nov-2026 por decisión del responsable técnico |
+| 9 | Cerrado | PruebaSimuladorController retirado; responde HTTP 404 Not Found verificado en docs/arreglos_sin_azure/09_ruta_retirada.txt | Nada |
 | 10 | Sin empezar | La API responde HTTP 200 a peticiones sin clave; no existe validación ni middleware de API Key | Implementar autenticación obligatoria por API Key (X-API-Key) para clientes autorizados |
 | 11 | Sin empezar | Controladores exponen rutas planas (/cotizar, /confirmar, etc.) sin prefijo /v1/ | Versionar los endpoints anteponiendo /v1/ en los Route attributes o convención global |
 | 12 | Cerrado | READMEs actualizados en los 3 repositorios (hoy) | Nada |
 | 13 | Cerrado | Ramas net10 con ciclo completo probado (docs/migracion_net10.md) | Nada |
+| 14 | Cerrado | B4 sin respuesta: reintentar la misma transportista, sin descartar opción, envío en PENDIENTE_CONFIRMACION y reintento con misma guía. Evidencia en docs/arreglos_sin_azure/b4_sin_respuesta.txt | Nada |
+| 15 | Cerrado | idCorrelacion estable sin fecha (R5): persistido en MED.Envio (IdCorrelacionPrecio e IdCorrelacionRegistro), mismo UUID tras reiniciar Mediador. Evidencia en docs/arreglos_sin_azure/idcorrelacion_estable.txt | Nada |
 
 ---
 
@@ -53,28 +55,20 @@ Documento de seguimiento de tareas, pendientes técnicos y pruebas de aseguramie
 
 ---
 
-### Pendiente N.º 3: Correlativo del código con una secuencia de SQL Server
+### Pendiente N.º 3: Correlativo del código con generación atómica por año
 
-- **Objetivo**: Confirmar que ante confirmaciones concurrentes de clientes y envíos distintos (`IdEnvio` diferentes), el sistema genere códigos de seguimiento correlativos únicos y sin colisiones mediante una secuencia en base de datos.
+- **Objetivo**: Garantizar que ante confirmaciones concurrentes de envíos distintos (`IdEnvio` diferentes), el sistema genere códigos de seguimiento correlativos atómicos únicos por año sin colisiones ni errores 500.
 - **Mecanismo Evaluado**:
-  - [ConfirmacionRepository.GenerarSiguienteCodigoSeguimiento()](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Infrastructure/Repositories/ConfirmacionRepository.cs#L147-L167).
-  - Validación de existencia de secuencia en SQL Server (`sys.sequences`).
+  - Tabla `MED.Correlativo` y procedimiento almacenado `MED.SiguienteCorrelativo` con actualización atómica por año (`database/03_correlativo.sql`).
+  - [ConfirmacionRepository.GenerarSiguienteCodigoSeguimiento()](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Infrastructure/Repositories/ConfirmacionRepository.cs).
 - **Entorno de Prueba**:
-  - Mediador levantado en `https://localhost:7250`.
-  - Simulador EETT levantado en `https://localhost:7201`.
-  - Script automatizado con sincronización estricta por barrera (`threading.Barrier(2)` en [`test_concurrencia_secuencia.py`](file:///d:/Proyectos/Jelaf/Courier/test_concurrencia_secuencia.py)).
-- **Parámetros de Prueba**:
-  - Cliente A: `IdCorrelacion = COU-REQ-010-1793217195` (Envío cotizado independiente)
-  - Cliente B: `IdCorrelacion = COU-REQ-011-1793217195` (Envío cotizado independiente)
-  - Disparo de 2 peticiones `POST /confirmar` estrictamente simultáneas.
-- **Resultados HTTP Obtenidos**:
-  - **Cliente B**: `HTTP 200 OK` → `estado: "CONFIRMADO"`, `codigoSeguimiento: "MED-2026-000006"`.
-  - **Cliente A**: `HTTP 500 Internal Server Error` → `DbUpdateException: Cannot insert duplicate key row in object 'MED.Envio' with unique index 'UQ_Envio_CodigoSeguimiento'. The duplicate key value is (MED-2026-000006)`.
-- **Causa Raíz Detectada**:
-  1. En `sys.sequences` de SQL Server no existe ninguna secuencia creada (0 secuencias).
-  2. `GenerarSiguienteCodigoSeguimiento()` calcula el correlativo en memoria leyendo `_db.Envios.AsNoTracking().Where(...).Select(...).Max() + 1` sin ningún tipo de bloqueo ni reserva atómica.
-  3. Al ejecutarse dos confirmaciones en paralelo para envíos distintos, ambas leen el mismo estado inicial de la BD, calculan el mismo código correlativo (`MED-2026-000006`), y la que intenta persistir en segundo lugar colisiona contra la restricción de unicidad, abortando con error 500.
-- **Veredicto QA**: **Falla / A medias**.
+  - Mediador levantado en `https://localhost:7250`, Simulador EETT en `https://localhost:7201`, SQL Server `MediadorDev`.
+  - Script automatizado con barrera estricta (`threading.Barrier(20)` disparando 20 confirmaciones simultáneas).
+- **Resultados Obtenidos**:
+  - 20 confirmaciones simultáneas de envíos independientes respondieron `HTTP 200 OK` con `estado: "CONFIRMADO"`.
+  - 20 códigos únicos generados sin un solo error 500 ni choque de clave única (`UQ_Envio_CodigoSeguimiento`).
+  - Evidencia completa en [docs/arreglos_sin_azure/03_concurrencia.txt](file:///d:/Proyectos/Jelaf/Courier/mediador-core/docs/arreglos_sin_azure/03_concurrencia.txt).
+- **Veredicto QA**: **Aprobado / Cerrado**.
 
 ---
 
@@ -141,15 +135,13 @@ Documento de seguimiento de tareas, pendientes técnicos y pruebas de aseguramie
 
 ### Pendiente N.º 9: Rutas de prueba protegidas
 
-- **Objetivo**: Comprobar si los endpoints de prueba poseen restricciones para evitar su exposición y ejecución en entornos productivos.
+- **Objetivo**: Asegurar que las rutas de prueba hacia el simulador no estén expuestas en entornos productivos.
 - **Mecanismo Evaluado**:
-  - [PruebaSimuladorController.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Presentation/Controllers/PruebaSimuladorController.cs).
-  - Configuración del pipeline en [Program.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Presentation/Program.cs).
+  - Retiro definitivo de `PruebaSimuladorController.cs`.
 - **Resultados Obtenidos**:
-  - Las rutas `POST /prueba/simulador/{idTransportista}/cotizar` y `POST /prueba/simulador/{idTransportista}/registrar` están expuestas de forma pública e incondicional.
-  - No existe directiva `#if DEBUG`, verificación de entorno (`IHostEnvironment.IsDevelopment()`) ni filtros de autorización que restrinjan su consumo.
-- **Veredicto QA**: **Pendiente / Sin empezar**.
-- **Resolución**: PruebaSimuladorController eliminado; las rutas /prueba/simulador/... ya no existen.
+  - Las rutas `/prueba/simulador/{idTransportista}/cotizar` y `/prueba/simulador/{idTransportista}/registrar` responden `HTTP 404 Not Found`.
+  - Evidencia registrada en [docs/arreglos_sin_azure/09_ruta_retirada.txt](file:///d:/Proyectos/Jelaf/Courier/mediador-core/docs/arreglos_sin_azure/09_ruta_retirada.txt).
+- **Veredicto QA**: **Aprobado / Cerrado**.
 
 ---
 
@@ -176,6 +168,38 @@ Documento de seguimiento de tareas, pendientes técnicos y pruebas de aseguramie
   - Los controladores definen rutas raíz sin versionar: `[Route("cotizar")]`, `[Route("confirmar")]`, `[Route("eventos")]` y `[Route("envio")]`.
   - Ninguna ruta incluye el prefijo `/v1/`.
 - **Veredicto QA**: **Pendiente / Sin empezar**.
+
+---
+
+### Corrección: Bloque 2 · B4 sin respuesta: reintentar la misma, nunca otra
+
+- **Objetivo**: Evitar que ante fallas de timeout o comunicación al llamar a B4 (`POST /registrar`), el Mediador descarte la transportista y pase a ofrecer otra alternativa, lo cual ocasionaría que un mismo paquete quede registrado dos veces en dos transportistas distintas.
+- **Mecanismo Implementado**:
+  - En [ConfirmacionMediadorService.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.ApplicationCore/Services/ConfirmacionMediadorService.cs): cuando `!resultadoRegistro.Exitosa`, se deja de llamar a `MarcarDescartada` y `ObtenerSiguienteAlternativa`. Se persiste el envío en `PENDIENTE_CONFIRMACION` mediante `GuardarPendienteConfirmacion(idEnvio, codigoSeguimiento, null)` y se retorna el estado `PENDIENTE_CONFIRMACION`.
+  - Idempotencia en [ConfirmacionMediadorService.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.ApplicationCore/Services/ConfirmacionMediadorService.cs): un reintento posterior cuando el envío está en `PENDIENTE_CONFIRMACION` no devuelve `YA_CONFIRMADO` ni expira por `VigenteHasta`, sino que continúa el registro en la misma transportista reutilizando el `CodigoSeguimiento` previamente asignado.
+  - Idempotencia en el Simulador ([EnvioRegistradoRepository.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-simulador-eett/SimuladorEETT.Infrastructure/Repositories/EnvioRegistradoRepository.cs)): registro indexado por `idCorrelacion` (C2 v2.0 §4/§5), garantizando que peticiones repetidas devuelvan la misma `numeroGuiaEETT` y `FechaRegistro`.
+- **Resultados Verificados**:
+  - Prueba de timeout controlada con `X-Escenario: SIN_RESPUESTA`: `POST /confirmar` agotó los reintentos síncronos y respondió `PENDIENTE_CONFIRMACION`.
+  - En BD: ninguna opción fue descartada (`Descartada = 0` para las 3 transportistas) y ninguna otra fue consultada.
+  - Al retirar el escenario y reintentar, se confirmó exitosamente con el mismo `codigoSeguimiento` y entregó una sola guía en el Simulador.
+  - Evidencia completa en [docs/arreglos_sin_azure/b4_sin_respuesta.txt](file:///d:/Proyectos/Jelaf/Courier/mediador-core/docs/arreglos_sin_azure/b4_sin_respuesta.txt).
+- **Veredicto QA**: **Aprobado / Cerrado**.
+
+---
+
+### Corrección: Bloque 3 · idCorrelacion estable sin fecha (Regla R5)
+
+- **Objetivo**: Evitar que el identificador `idCorrelacion` hacia la transportista se recalcule con la fecha del día (`MED-aaaa-MM-dd-idEnvio`), rompiendo la idempotencia de R5 en reintentos que cruzan la medianoche o se ejecutan días después.
+- **Mecanismo Implementado**:
+  - Script SQL [database/04_idcorrelacion.sql](file:///d:/Proyectos/Jelaf/Courier/mediador-core/database/04_idcorrelacion.sql) (idempotente) que agrega a `MED.Envio` las columnas `IdCorrelacionPrecio` e `IdCorrelacionRegistro`.
+  - [IdCorrelacionGenerator.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.ApplicationCore/Utilidades/IdCorrelacionGenerator.cs) y [ConfirmacionRepository.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Infrastructure/Repositories/ConfirmacionRepository.cs): genera y persiste el identificador sin fecha (UUID v7/v4 según soporte de runtime) antes de realizar la primera llamada HTTP a B3 (`/cotizar`) y B4 (`/registrar`).
+  - [ConfirmacionMediadorService.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.ApplicationCore/Services/ConfirmacionMediadorService.cs): retiro definitivo de `ArmarIdCorrelacionSimulador`. Todo reintento (incluso tras reiniciar el Mediador) lee el identificador guardado en `MED.Envio` y nunca lo recalcula.
+- **Resultados Verificados**:
+  - Se provocó `SIN_RESPUESTA` en B4, quedando el envío en `PENDIENTE_CONFIRMACION` con su `IdCorrelacionRegistro` generado y persistido en `MED.Envio`.
+  - Se detuvo por completo y se reinició el servicio Mediador.
+  - Se repitió `POST /confirmar`: leyó el `idCorrelacion` guardado en BD, envió exactamente el mismo valor al Simulador y se confirmó con una sola guía.
+  - Evidencia completa en [docs/arreglos_sin_azure/idcorrelacion_estable.txt](file:///d:/Proyectos/Jelaf/Courier/mediador-core/docs/arreglos_sin_azure/idcorrelacion_estable.txt).
+- **Veredicto QA**: **Aprobado / Cerrado**.
 
 
 
