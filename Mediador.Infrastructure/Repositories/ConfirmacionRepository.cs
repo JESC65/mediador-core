@@ -41,7 +41,8 @@ public class ConfirmacionRepository : IConfirmacionRepository
                 UrlConector = transportista.UrlConector,
                 CodigoRutaExterno = ruta != null ? ruta.CodigoRutaExterno : string.Empty,
                 TipoCarga = envio.TipoCarga ?? string.Empty,
-                CodigoSeguimientoEnvio = envio.CodigoSeguimiento
+                CodigoSeguimientoEnvio = envio.CodigoSeguimiento,
+                EstadoEnvio = envio.Estado
             };
 
         return await query.AsNoTracking().FirstOrDefaultAsync();
@@ -72,7 +73,8 @@ public class ConfirmacionRepository : IConfirmacionRepository
                 UrlConector = transportista.UrlConector,
                 CodigoRutaExterno = ruta != null ? ruta.CodigoRutaExterno : string.Empty,
                 TipoCarga = envio.TipoCarga ?? string.Empty,
-                CodigoSeguimientoEnvio = envio.CodigoSeguimiento
+                CodigoSeguimientoEnvio = envio.CodigoSeguimiento,
+                EstadoEnvio = envio.Estado
             };
 
         return await query.AsNoTracking().FirstOrDefaultAsync();
@@ -204,18 +206,27 @@ public class ConfirmacionRepository : IConfirmacionRepository
     public async Task GuardarPendienteConfirmacion(int idEnvio, string codigoSeguimiento, string? numeroGuiaEett)
     {
         var envio = await _db.Envios.FirstAsync(e => e.IdEnvio == idEnvio);
+        var yaPendiente = envio.Estado == "PENDIENTE_CONFIRMACION";
+
         envio.Estado = "PENDIENTE_CONFIRMACION";
         envio.CodigoSeguimiento = codigoSeguimiento;
-        envio.Observacion = $"numeroGuiaEETT={numeroGuiaEett}";
+        envio.Observacion = numeroGuiaEett is not null ? $"numeroGuiaEETT={numeroGuiaEett}" : null;
 
-        _db.EnvioEstados.Add(new Models.EnvioEstado
+        if (!yaPendiente)
         {
-            IdEnvio = idEnvio,
-            Estado = "PENDIENTE_CONFIRMACION",
-            FechaEstado = RelojLima.Ahora(),
-            Origen = "MEDIADOR",
-            Comentario = $"Registrado en transportista (guía {numeroGuiaEett}), falló guardar la confirmación"
-        });
+            var comentario = numeroGuiaEett is not null
+                ? $"Registrado en transportista (guía {numeroGuiaEett}), falló guardar la confirmación"
+                : "Sin respuesta de la transportista al registrar; pendiente de confirmación";
+
+            _db.EnvioEstados.Add(new Models.EnvioEstado
+            {
+                IdEnvio = idEnvio,
+                Estado = "PENDIENTE_CONFIRMACION",
+                FechaEstado = RelojLima.Ahora(),
+                Origen = "MEDIADOR",
+                Comentario = comentario
+            });
+        }
 
         await _db.SaveChangesAsync();
     }

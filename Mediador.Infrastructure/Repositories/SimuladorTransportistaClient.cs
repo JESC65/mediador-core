@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using Mediador.ApplicationCore.Dtos.Simulador;
 using Mediador.ApplicationCore.Interfaces;
 using Mediador.ApplicationCore.Utilidades;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -20,15 +21,18 @@ public class SimuladorTransportistaClient : ISimuladorTransportistaClient
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<SimuladorTransportistaClient> _logger;
     private readonly ParametrosOptions _parametros;
+    private readonly IConfiguration _configuration;
 
     public SimuladorTransportistaClient(
         IHttpClientFactory httpClientFactory,
         ILogger<SimuladorTransportistaClient> logger,
-        IOptions<ParametrosOptions> parametros)
+        IOptions<ParametrosOptions> parametros,
+        IConfiguration configuration)
     {
         _httpClientFactory = httpClientFactory;
         _logger = logger;
         _parametros = parametros.Value;
+        _configuration = configuration;
     }
 
     public Task<ResultadoLlamadaSimuladorDto<SimuladorCotizarResponseDto>> ConsultarPrecio(
@@ -54,7 +58,18 @@ public class SimuladorTransportistaClient : ISimuladorTransportistaClient
 
         try
         {
-            using var httpResponse = await cliente.PostAsJsonAsync(url, request, cts.Token);
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, url)
+            {
+                Content = JsonContent.Create(request)
+            };
+
+            var escenario = ObtenerEscenarioConfigurado(url, ruta);
+            if (!string.IsNullOrWhiteSpace(escenario))
+            {
+                httpRequest.Headers.TryAddWithoutValidation("X-Escenario", escenario);
+            }
+
+            using var httpResponse = await cliente.SendAsync(httpRequest, cts.Token);
 
             if (!httpResponse.IsSuccessStatusCode)
             {
@@ -81,5 +96,41 @@ public class SimuladorTransportistaClient : ISimuladorTransportistaClient
             _logger.LogWarning(ex, "No se pudo conectar a {Url}", url);
             return ResultadoLlamadaSimuladorDto<TRespuesta>.Falla("SIN_CONEXION");
         }
+    }
+
+    private string? ObtenerEscenarioConfigurado(string url, string ruta)
+    {
+        // 1. Variable de entorno directa (ej. para pruebas específicas sin modificar archivos)
+        if (ruta.Equals("registrar", StringComparison.OrdinalIgnoreCase))
+        {
+            var envReg = Environment.GetEnvironmentVariable("SIMULADOR_ESCENARIO_REGISTRAR");
+            if (!string.IsNullOrWhiteSpace(envReg)) return envReg;
+        }
+
+        // 2. Mapeo en IConfiguration (appsettings.json / appsettings.Development.json)
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            // Especificidad alta: puerto/ruta o autoridad/ruta (ej. "7201/registrar")
+            var porPuertoRuta = _configuration[$"Simulador:Escenarios:{uri.Port}/{ruta}"];
+            if (!string.IsNullOrWhiteSpace(porPuertoRuta)) return porPuertoRuta;
+
+            var porHostRuta = _configuration[$"Simulador:Escenarios:{uri.Authority}/{ruta}"];
+            if (!string.IsNullOrWhiteSpace(porHostRuta)) return porHostRuta;
+
+            // Por ruta / operación ("registrar" o "cotizar")
+            var porRuta = _configuration[$"Simulador:Escenarios:{ruta}"];
+            if (!string.IsNullOrWhiteSpace(porRuta)) return porRuta;
+
+            // Por puerto o autoridad general (afecta tanto a cotizar como a registrar para ese puerto)
+            var porPuerto = _configuration[$"Simulador:Escenarios:{uri.Port}"];
+            if (!string.IsNullOrWhiteSpace(porPuerto)) return porPuerto;
+
+            var porHost = _configuration[$"Simulador:Escenarios:{uri.Authority}"];
+            if (!string.IsNullOrWhiteSpace(porHost)) return porHost;
+        }
+
+        // Escenario global
+        var general = _configuration["Simulador:Escenarios:General"] ?? _configuration["Simulador:Escenario"];
+        return !string.IsNullOrWhiteSpace(general) ? general : null;
     }
 }

@@ -20,4 +20,5 @@ public class CotizacionParaConfirmarDto
 
     // Estado actual del envío al momento de buscar la opción — para el paso 1 (idempotencia).
     public string? CodigoSeguimientoEnvio { get; set; }
+    public string EstadoEnvio { get; set; } = string.Empty;
 }

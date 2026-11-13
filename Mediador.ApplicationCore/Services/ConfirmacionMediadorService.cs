@@ -68,11 +68,10 @@ public class ConfirmacionMediadorService : IConfirmacionMediadorService
         // se agotan las alternativas (ObtenerSiguienteAlternativa devuelve null).
         CotizacionParaConfirmarDto? candidata = candidataEncontrada;
 
-        // Paso 1 — Idempotencia: si el envío de esta opción ya tiene código, no se crea nada nuevo.
-        // Simplificación: se informa con los datos de ESTA opción (transportista/precio), asumiendo
-        // que es la misma que quedó elegida — es lo normal salvo que haya habido un PRECIO_CAMBIO
-        // de por medio, caso en el que convendría reconsultar por codigoSeguimiento en vez de idOpcion.
-        if (candidata.CodigoSeguimientoEnvio is not null)
+        // Paso 1 — Idempotencia: si el envío de esta opción ya tiene código y está CONFIRMADO,
+        // no se crea nada nuevo. Si quedó en PENDIENTE_CONFIRMACION, no se devuelve YA_CONFIRMADO,
+        // sino que se continúa el flujo para reintentar el registro en la misma transportista.
+        if (candidata.CodigoSeguimientoEnvio is not null && candidata.EstadoEnvio == "CONFIRMADO")
         {
             return new ConfirmarResponseDto
             {
@@ -85,8 +84,8 @@ public class ConfirmacionMediadorService : IConfirmacionMediadorService
             };
         }
 
-        // Paso 2 — Vigencia.
-        if (RelojLima.Ahora() > candidata.VigenteHasta)
+        // Paso 2 — Vigencia (solo aplica a cotizaciones nuevas, no a reintentos de PENDIENTE_CONFIRMACION).
+        if (candidata.EstadoEnvio != "PENDIENTE_CONFIRMACION" && RelojLima.Ahora() > candidata.VigenteHasta)
         {
             return new ConfirmarResponseDto
             {
@@ -177,9 +176,11 @@ public class ConfirmacionMediadorService : IConfirmacionMediadorService
                 };
             }
 
-            // Paso 6 (adelantado) — se genera el código acá porque B4 lo necesita en el
+            // Paso 6 (adelantado) — si ya tenía código asignado (reintento de PENDIENTE_CONFIRMACION),
+            // se reutiliza; si no, se genera el correlativo acá porque B4 lo necesita en el
             // cuerpo de la petición; recién se persiste de verdad en el paso 7.
-            var codigoSeguimiento = await _confirmacionRepositorio.GenerarSiguienteCodigoSeguimiento();
+            var codigoSeguimiento = candidata.CodigoSeguimientoEnvio
+                ?? await _confirmacionRepositorio.GenerarSiguienteCodigoSeguimiento();
 
             // Paso 5 — Registrar en la transportista.
             var solicitudRegistro = new SimuladorRegistrarRequestDto
@@ -206,9 +207,20 @@ public class ConfirmacionMediadorService : IConfirmacionMediadorService
 
             if (!resultadoRegistro.Exitosa)
             {
-                await _confirmacionRepositorio.MarcarDescartada(candidata.IdCotizacion, "SIN_RESPUESTA");
-                candidata = await _confirmacionRepositorio.ObtenerSiguienteAlternativa(candidata.IdEnvio, candidata.IdOpcion);
-                continue;
+                // Si B4 no respondió dentro de t_registro_eett tras agotar r_esperas_sincronas,
+                // NUNCA descartar la opción ni pasar a otra transportista: la primera transportista
+                // pudo haber registrado el envío antes del timeout/falla de red.
+                await _confirmacionRepositorio.GuardarPendienteConfirmacion(candidata.IdEnvio, codigoSeguimiento, null);
+
+                return new ConfirmarResponseDto
+                {
+                    IdCorrelacion = request.IdCorrelacion,
+                    Estado = "PENDIENTE_CONFIRMACION",
+                    CodigoSeguimiento = codigoSeguimiento,
+                    IdTransportista = candidata.IdTransportista,
+                    NombreTransportista = candidata.NombreTransportista,
+                    Motivo = "La transportista no respondió al registro dentro del tiempo esperado. Reintente la confirmación."
+                };
             }
 
             var respuestaRegistro = resultadoRegistro.Respuesta!;
