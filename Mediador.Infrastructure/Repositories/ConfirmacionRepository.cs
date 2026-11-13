@@ -42,7 +42,9 @@ public class ConfirmacionRepository : IConfirmacionRepository
                 CodigoRutaExterno = ruta != null ? ruta.CodigoRutaExterno : string.Empty,
                 TipoCarga = envio.TipoCarga ?? string.Empty,
                 CodigoSeguimientoEnvio = envio.CodigoSeguimiento,
-                EstadoEnvio = envio.Estado
+                EstadoEnvio = envio.Estado,
+                IdCorrelacionPrecio = envio.IdCorrelacionPrecio,
+                IdCorrelacionRegistro = envio.IdCorrelacionRegistro
             };
 
         return await query.AsNoTracking().FirstOrDefaultAsync();
@@ -74,7 +76,9 @@ public class ConfirmacionRepository : IConfirmacionRepository
                 CodigoRutaExterno = ruta != null ? ruta.CodigoRutaExterno : string.Empty,
                 TipoCarga = envio.TipoCarga ?? string.Empty,
                 CodigoSeguimientoEnvio = envio.CodigoSeguimiento,
-                EstadoEnvio = envio.Estado
+                EstadoEnvio = envio.Estado,
+                IdCorrelacionPrecio = envio.IdCorrelacionPrecio,
+                IdCorrelacionRegistro = envio.IdCorrelacionRegistro
             };
 
         return await query.AsNoTracking().FirstOrDefaultAsync();
@@ -229,5 +233,33 @@ public class ConfirmacionRepository : IConfirmacionRepository
         }
 
         await _db.SaveChangesAsync();
+    }
+
+    public async Task<string> AsegurarIdCorrelacionPrecio(int idEnvio)
+    {
+        var envio = await _db.Envios.FirstAsync(e => e.IdEnvio == idEnvio);
+        if (!string.IsNullOrWhiteSpace(envio.IdCorrelacionPrecio))
+        {
+            return envio.IdCorrelacionPrecio;
+        }
+
+        var nuevo = IdCorrelacionGenerator.Generar();
+        envio.IdCorrelacionPrecio = nuevo;
+        await _db.SaveChangesAsync();
+        return nuevo;
+    }
+
+    public async Task<string> AsegurarIdCorrelacionRegistro(int idEnvio)
+    {
+        var envio = await _db.Envios.FirstAsync(e => e.IdEnvio == idEnvio);
+        if (!string.IsNullOrWhiteSpace(envio.IdCorrelacionRegistro))
+        {
+            return envio.IdCorrelacionRegistro;
+        }
+
+        var nuevo = IdCorrelacionGenerator.Generar();
+        envio.IdCorrelacionRegistro = nuevo;
+        await _db.SaveChangesAsync();
+        return nuevo;
     }
 }

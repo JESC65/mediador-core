@@ -21,4 +21,8 @@ public class CotizacionParaConfirmarDto
     // Estado actual del envío al momento de buscar la opción — para el paso 1 (idempotencia).
     public string? CodigoSeguimientoEnvio { get; set; }
     public string EstadoEnvio { get; set; } = string.Empty;
+
+    // Identificadores de correlación estables hacia la transportista (B3 y B4, sin fecha, R5).
+    public string? IdCorrelacionPrecio { get; set; }
+    public string? IdCorrelacionRegistro { get; set; }
 }

@@ -120,10 +120,18 @@ public class ConfirmacionMediadorService : IConfirmacionMediadorService
                 continue;
             }
 
-            // Paso 4 — Consultar el precio real.
+            // Paso 4 — Consultar el precio real (B3).
+            // R5: idCorrelacion único y sin fecha, generado y guardado en MED.Envio antes de la primera llamada.
+            var idCorrelacionPrecio = candidata.IdCorrelacionPrecio;
+            if (string.IsNullOrWhiteSpace(idCorrelacionPrecio))
+            {
+                idCorrelacionPrecio = await _confirmacionRepositorio.AsegurarIdCorrelacionPrecio(candidata.IdEnvio);
+                candidata.IdCorrelacionPrecio = idCorrelacionPrecio;
+            }
+
             var solicitudPrecio = new SimuladorCotizarRequestDto
             {
-                IdCorrelacion = ArmarIdCorrelacionSimulador(candidata.IdEnvio),
+                IdCorrelacion = idCorrelacionPrecio,
                 IdRuta = candidata.CodigoRutaExterno,
                 TipoCarga = candidata.TipoCarga,
                 Paquetes = paquetes
@@ -182,10 +190,18 @@ public class ConfirmacionMediadorService : IConfirmacionMediadorService
             var codigoSeguimiento = candidata.CodigoSeguimientoEnvio
                 ?? await _confirmacionRepositorio.GenerarSiguienteCodigoSeguimiento();
 
-            // Paso 5 — Registrar en la transportista.
+            // Paso 5 — Registrar en la transportista (B4).
+            // R5: idCorrelacion único y sin fecha para B4, generado y guardado en MED.Envio antes de la llamada.
+            var idCorrelacionRegistro = candidata.IdCorrelacionRegistro;
+            if (string.IsNullOrWhiteSpace(idCorrelacionRegistro))
+            {
+                idCorrelacionRegistro = await _confirmacionRepositorio.AsegurarIdCorrelacionRegistro(candidata.IdEnvio);
+                candidata.IdCorrelacionRegistro = idCorrelacionRegistro;
+            }
+
             var solicitudRegistro = new SimuladorRegistrarRequestDto
             {
-                IdCorrelacion = solicitudPrecio.IdCorrelacion,
+                IdCorrelacion = idCorrelacionRegistro,
                 CodigoSeguimiento = codigoSeguimiento,
                 IdRuta = candidata.CodigoRutaExterno,
                 PrecioAcordado = precioReal, // nunca el precio de venta al cliente final
@@ -290,9 +306,6 @@ public class ConfirmacionMediadorService : IConfirmacionMediadorService
 
         return resultado;
     }
-
-    private static string ArmarIdCorrelacionSimulador(int idEnvio) =>
-        $"MED-{RelojLima.Ahora():yyyy-MM-dd}-{idEnvio:D6}";
 
     private static SimuladorPersonaDto MapearPersona(PersonaConfirmarDto persona) => new()
     {

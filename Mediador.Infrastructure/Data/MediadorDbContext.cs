@@ -72,6 +72,8 @@ public class MediadorDbContext : DbContext
             e.HasKey(x => x.IdEnvio);
             e.Property(x => x.IdEnvio).ValueGeneratedOnAdd();
             e.Property(x => x.PesoTotalKg).HasPrecision(8, 2);
+            e.Property(x => x.IdCorrelacionPrecio).HasMaxLength(80);
+            e.Property(x => x.IdCorrelacionRegistro).HasMaxLength(80);
         });
 
         modelBuilder.Entity<EnvioPaquete>(e =>
