@@ -23,6 +23,8 @@ Documento de seguimiento de tareas, pendientes técnicos y pruebas de aseguramie
 | 13 | Cerrado | Ramas net10 con ciclo completo probado (docs/migracion_net10.md) | Nada |
 | 14 | Cerrado | B4 sin respuesta: reintentar la misma transportista, sin descartar opción, envío en PENDIENTE_CONFIRMACION y reintento con misma guía. Evidencia en docs/arreglos_sin_azure/b4_sin_respuesta.txt | Nada |
 | 15 | Cerrado | idCorrelacion estable sin fecha (R5): persistido en MED.Envio (IdCorrelacionPrecio e IdCorrelacionRegistro), mismo UUID tras reiniciar Mediador. Evidencia en docs/arreglos_sin_azure/idcorrelacion_estable.txt | Nada |
+| 16 | Cerrado | Un solo formato de errores (R8): formato JSON unificado `{ error, detalle, campo, idCorrelacion }` para errores 4xx y 5xx mediante MediadorApiException y ManejadorExcepcionesMiddleware. Evidencia en docs/arreglos_sin_azure/r8_errores.txt y catálogo en docs/errores.md | Nada |
+| 17 | Cerrado | Bandeja de eventos del simulador (B7 y R6): persistencia local en bandeja_eventos.json previa al envío HTTP, sobre C2 v2.0 §5 con secuencias por transportista y endpoint GET /v1/eventos?desde=N. Evidencia en docs/arreglos_sin_azure/b7_bandeja.txt | Nada |
 
 ---
 
@@ -201,5 +203,47 @@ Documento de seguimiento de tareas, pendientes técnicos y pruebas de aseguramie
   - Evidencia completa en [docs/arreglos_sin_azure/idcorrelacion_estable.txt](file:///d:/Proyectos/Jelaf/Courier/mediador-core/docs/arreglos_sin_azure/idcorrelacion_estable.txt).
 - **Veredicto QA**: **Aprobado / Cerrado**.
 
+---
 
+### Corrección: Bloque 2 · Un solo formato de errores (Regla R8)
 
+- **Objetivo**: Asegurar que todos los errores HTTP (códigos 4xx y 5xx) del Mediador devuelvan un formato JSON uniforme `{ error, detalle, campo, idCorrelacion }` (con `campo: null` cuando no aplique, Regla R11), protegiendo los detalles técnicos en errores 500 y manteniendo los estados de negocio de confirmación dentro de `HTTP 200 OK`.
+- **Mecanismo Evaluado**:
+  - Excepción personalizada `MediadorApiException` en [MediadorApiException.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.ApplicationCore/Exceptions/MediadorApiException.cs).
+  - Middleware común [ManejadorExcepcionesMiddleware.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Presentation/Middlewares/ManejadorExcepcionesMiddleware.cs) registrado al inicio de la canalización en [Program.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Presentation/Program.cs).
+  - Refactorización de controladores para lanzar excepciones tipadas:
+    - [CotizarController.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Presentation/Controllers/CotizarController.cs): Lanza HTTP 409 con `ESTADO_INVALIDO` ante conflictos de estado previo.
+    - [ConfirmarController.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Presentation/Controllers/ConfirmarController.cs): Lanza HTTP 404 con `OPCION_NO_ENCONTRADA` y `campo: "idOpcion"`. Los resultados de negocio (`OPCION_EXPIRADA`, `YA_CONFIRMADO`, `PENDIENTE_CONFIRMACION`, etc.) se conservan íntegros en `HTTP 200 OK`.
+    - [EventosController.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Presentation/Controllers/EventosController.cs): Lanza HTTP 409 con `ESTADO_INVALIDO` ante transiciones no permitidas.
+  - Script automatizado de pruebas `test_r8_errores.py`.
+- **Entorno de Prueba**:
+  - Mediador levantado en `https://localhost:7250`, SQL Server `MediadorDev`.
+- **Resultados Verificados**:
+  - **Escenario 1 (409 en Cotizar)**: `POST /cotizar` con `idCorrelacion` de un envío ya `CONFIRMADO` (`COU-QA-409-CONFIRMADO`) respondió `HTTP 409 Conflict` con `error: "ESTADO_INVALIDO"`, `campo: null`, `idCorrelacion: "COU-QA-409-CONFIRMADO"`.
+  - **Escenario 2 (404 en Confirmar)**: `POST /confirmar` con `idOpcion: "OPT-INEXISTENTE"` respondió `HTTP 404 Not Found` con `error: "OPCION_NO_ENCONTRADA"`, `campo: "idOpcion"`, `idCorrelacion: "COU-QA-404-NOTFOUND"`.
+  - **Escenario 3 (409 en Eventos)**: `POST /eventos` notificando transición ilegal `ENTREGADO` sobre un envío en estado `COTIZADO` respondió `HTTP 409 Conflict` con `error: "ESTADO_INVALIDO"`, `campo: null`, `idCorrelacion: null`.
+  - **Escenario 4 (500 Error Interno Forzado)**: `POST /cotizar` provocando excepción no controlada respondió `HTTP 500 Internal Server Error` con `error: "ERROR_INTERNO"`, detalle genérico sin exponer el stack trace, `campo: null`, y el `idCorrelacion` capturado en el log del servidor.
+  - Evidencia completa en [docs/arreglos_sin_azure/r8_errores.txt](file:///d:/Proyectos/Jelaf/Courier/mediador-core/docs/arreglos_sin_azure/r8_errores.txt) y catálogo normativo en [docs/errores.md](file:///d:/Proyectos/Jelaf/Courier/mediador-core/docs/errores.md).
+- **Veredicto QA**: **Aprobado / Cerrado**.
+
+---
+
+### Corrección: Bloque 3 · Bandeja de eventos del simulador (Reglas R6 y B7)
+
+- **Objetivo**: Garantizar que el Simulador EETT guarde los eventos de trazabilidad en una bandeja persistente antes de intentar su envío por HTTP, asignando secuencias crecientes por transportista y exponiendo la operación B7 (`GET /v1/eventos?desde=N`) para recuperación tras cortes o caídas del Mediador.
+- **Mecanismo Evaluado**:
+  - Repositorio persistente `BandejaEventosRepository` en `SimuladorEETT.Infrastructure/Repositories/BandejaEventosRepository.cs` respaldado en archivo JSON local `bandeja_eventos.json`.
+  - Sobre de evento actualizado según contrato C2 v2.0 §5: `idEvento` (UUID v7/v4), `secuencia` incremental monótona, `versionContrato: "2.0"`, `entidad: { tipo: "ENVIO", id: "..." }`, `versionEntidad: 1` y `emisor: "CONECTOR"`.
+  - Guardado en bandeja previo a la llamada HTTP en `EventoMediadorService.cs`, con captura de excepciones de red para no perder eventos cuando el Mediador no responde.
+  - Controlador B7 `EventosController` en `SimuladorEETT.Presentation/Controllers/EventosController.cs` con ruta `GET /v1/eventos?desde=N`.
+  - Script automatizado de pruebas `test_b7_bandeja.py`.
+- **Entorno de Prueba**:
+  - Simulador EETT levantado en `https://localhost:7201`.
+  - Mediador deliberadamente apagado / no disponible para validar la persistencia sin pérdida de mensajes ante fallas de red.
+- **Resultados Verificados**:
+  - Se emitieron 3 eventos secuenciales con `POST /simular-evento` (`RECEPCION_CONFIRMADA`, `BUS_ASIGNADO` y `EN_VIAJE`).
+  - Al estar el Mediador apagado, los eventos se persistieron en `bandeja_eventos.json` con `enviado: false` sin arrojar error no controlado en el Simulador.
+  - Se consultó `GET /v1/eventos?desde=0`: se recuperaron exactamente los 3 eventos con secuencias 1, 2 y 3 en orden ascendente, cumpliendo con todos los campos de C2 v2.0 §5.
+  - Se comprobó la supervivencia ante reinicio del servicio Simulador, validando que la consulta con `desde=2` devuelve únicamente el evento con secuencia 3.
+  - Evidencia completa en [docs/arreglos_sin_azure/b7_bandeja.txt](file:///d:/Proyectos/Jelaf/Courier/mediador-core/docs/arreglos_sin_azure/b7_bandeja.txt) (y en el Simulador) y justificación en `README.md` del Simulador.
+- **Veredicto QA**: **Aprobado / Cerrado**.
