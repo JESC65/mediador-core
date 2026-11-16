@@ -5,6 +5,7 @@ using Mediador.ApplicationCore.Utilidades;
 using Mediador.Infrastructure.Clientes;
 using Mediador.Infrastructure.Data;
 using Mediador.Infrastructure.Repositories;
+using Mediador.Presentation.Middlewares;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -45,6 +46,8 @@ builder.Services.AddScoped<IConfirmacionRepository, ConfirmacionRepository>();
 builder.Services.AddScoped<IConfirmacionMediadorService, ConfirmacionMediadorService>();
 
 var app = builder.Build();
+
+app.UseMiddleware<ManejadorExcepcionesMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {

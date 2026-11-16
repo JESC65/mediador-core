@@ -1,0 +1,120 @@
+================================================================================
+EVIDENCIA DE PRUEBA: BLOQUE 2 - UN SOLO FORMATO DE ERRORES (REGLA R8)
+Fecha y hora: 2026-11-16 16:24:42
+Servidor evaluado: https://localhost:7250
+================================================================================
+
+--------------------------------------------------------------------------------
+--- ESCENARIO 1: 409 Conflict en Cotizar ---
+--------------------------------------------------------------------------------
+Request: POST /cotizar
+{
+  "idCorrelacion": "COU-QA-409-CONFIRMADO",
+  "idEnvioCourier": "ENV-QA-409",
+  "idCourier": 1,
+  "ubigeoOrigen": "150101",
+  "ubigeoDestino": "130101",
+  "tipoCarga": "CARGA_LIVIANA",
+  "fechaSolicitud": "2026-11-16T16:24:37-05:00",
+  "paquetes": [
+    {
+      "descripcion": "Paquete prueba conflicto 409",
+      "pesoKg": 5.0,
+      "cantidad": 1,
+      "esFragil": false
+    }
+  ]
+}
+
+Response (HTTP 409 en 3.988 s):
+{
+  "error": "ESTADO_INVALIDO",
+  "detalle": "Ya existe un envío con este idCorrelacion en un estado distinto de COTIZADO (estado actual: CONFIRMADO).",
+  "campo": null,
+  "idCorrelacion": "COU-QA-409-CONFIRMADO"
+}
+
+--------------------------------------------------------------------------------
+--- ESCENARIO 2: 404 Not Found en Confirmar ---
+--------------------------------------------------------------------------------
+Request: POST /confirmar
+{
+  "idCorrelacion": "COU-QA-404-NOTFOUND",
+  "idOpcion": "OPT-INEXISTENTE",
+  "remitente": {
+    "tipoDocumento": "DNI",
+    "numeroDocumento": "12345678",
+    "nombres": "Juan",
+    "apellidos": "Pérez",
+    "telefono": "999888777"
+  },
+  "consignado": {
+    "tipoDocumento": "DNI",
+    "numeroDocumento": "87654321",
+    "nombres": "Ana",
+    "apellidos": "Gómez",
+    "telefono": "999111222",
+    "direccion": "Av. Principal 123",
+    "ubigeo": "130101"
+  }
+}
+
+Response (HTTP 404 en 0.245 s):
+{
+  "error": "OPCION_NO_ENCONTRADA",
+  "detalle": "No se encontró la opción de cotización 'OPT-INEXISTENTE'.",
+  "campo": "idOpcion",
+  "idCorrelacion": "COU-QA-404-NOTFOUND"
+}
+
+--------------------------------------------------------------------------------
+--- ESCENARIO 3: 409 Conflict en Eventos ---
+--------------------------------------------------------------------------------
+Request: POST /eventos
+{
+  "idEvento": "0193a1b2-0c3d-7e4f-8a9b-00006afb7499",
+  "tipoEvento": "ENTREGADO",
+  "idTransportista": 7,
+  "fechaEvento": "2026-11-16T16:24:41-05:00",
+  "datos": {
+    "codigoSeguimiento": "MED-2026-QA-COTIZADO"
+  }
+}
+
+Response (HTTP 409 en 0.322 s):
+{
+  "error": "ESTADO_INVALIDO",
+  "detalle": "Transición de estado no permitida. El envío se encuentra en estado 'COTIZADO'.",
+  "campo": null,
+  "idCorrelacion": null
+}
+
+--------------------------------------------------------------------------------
+--- ESCENARIO 4: 500 Internal Server Error (Forzado) ---
+--------------------------------------------------------------------------------
+Request: POST /cotizar
+{
+  "idCorrelacion": "COU-QA-ERROR-500",
+  "idEnvioCourier": "ENV-QA-500",
+  "idCourier": 1,
+  "ubigeoOrigen": "150101",
+  "ubigeoDestino": "130101",
+  "tipoCarga": "CARGA_LIVIANA",
+  "paquetes": [
+    {
+      "descripcion": "Paquete prueba 500 forzado",
+      "pesoKg": 1.0,
+      "cantidad": 1,
+      "esFragil": false
+    }
+  ]
+}
+
+Response (HTTP 500 en 0.013 s):
+{
+  "error": "ERROR_INTERNO",
+  "detalle": "Ocurrió un error inesperado al procesar la solicitud.",
+  "campo": null,
+  "idCorrelacion": "COU-QA-ERROR-500"
+}
+

@@ -1,4 +1,5 @@
 using Mediador.ApplicationCore.Dtos;
+using Mediador.ApplicationCore.Exceptions;
 using Mediador.ApplicationCore.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -22,11 +23,12 @@ public class EventosController : ControllerBase
 
         if (resultado.EstadoConflicto is not null)
         {
-            return Conflict(new
-            {
-                error = "ESTADO_INVALIDO",
-                estadoActual = resultado.EstadoConflicto
-            });
+            throw new MediadorApiException(
+                statusCode: StatusCodes.Status409Conflict,
+                error: "ESTADO_INVALIDO",
+                detalle: $"Transición de estado no permitida. El envío se encuentra en estado '{resultado.EstadoConflicto}'.",
+                campo: null,
+                idCorrelacion: null);
         }
 
         return Ok(resultado.Respuesta);
