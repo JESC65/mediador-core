@@ -1,0 +1,78 @@
+================================================================================
+EVIDENCIA DE PRUEBA: BLOQUE 3 - RECUPERACIÓN AUTOMÁTICA DE EVENTOS (B7 Y R6)
+Fecha y hora: 2026-11-17 17:19:25
+Simulador: http://localhost:5201
+Mediador:  http://localhost:5250
+================================================================================
+
+[PASO 1] Iniciando Simulador EETT en segundo plano...
+[OK] Simulador EETT levantado y respondiendo en http://localhost:5201
+
+--------------------------------------------------------------------------------
+--- FASE 1: Con Mediador APAGADO, generar 3 eventos en el simulador ---
+--------------------------------------------------------------------------------
+Evento 1 emitido (RECEPCION_CONFIRMADA): Secuencia=1, EnviadoHttp=False
+Evento 2 emitido (BUS_ASIGNADO): Secuencia=2, EnviadoHttp=False
+Evento 3 emitido (EN_VIAJE): Secuencia=3, EnviadoHttp=False
+
+Consulta B7 en simulador (GET /v1/eventos?desde=0): 3 eventos en bandeja.
+Secuencias en bandeja: [1, 2, 3]
+
+--------------------------------------------------------------------------------
+--- FASE 2: Arrancar el Mediador y verificar recuperación al arranque ---
+--------------------------------------------------------------------------------
+Iniciando Mediador...
+[OK] Mediador levantado. Esperando que el worker ejecute la recuperación inicial...
+
+Verificación en BD: Eventos recuperados en MED.EventoRecibido:
+IdEventoRecibido IdEvento                                                                         TipoEvento                               Secuencia   RequiereMensajeRechazado Procesado
+---------------- -------------------------------------------------------------------------------- ---------------------------------------- ----------- ------------------------ ---------
+            1022 9100c2dd-bce0-4443-9314-bcc4b419cd6f                                             RECEPCION_CONFIRMADA                               1                        0         1
+            1023 9ad2200e-69f4-44f4-b26c-6063e3b867f0                                             BUS_ASIGNADO                                       2                        0         1
+            1024 bea98431-4c9b-48ca-b4e2-182b0bec12fc                                             EN_VIAJE                                           3                        0         1
+
+(3 rows affected)
+Verificación en BD: Secuencia contigua tras arranque:
+IdTransportista UltimaSecuenciaContigua
+--------------- -----------------------
+              7                       3
+
+(1 rows affected)
+Total eventos guardados en Mediador: (1 rows affected)
+
+--------------------------------------------------------------------------------
+--- FASE 3: Provocar hueco de secuencia y validar autorecuperación inmediata ---
+--------------------------------------------------------------------------------
+Evento 4 generado en simulador: Secuencia=4
+Evento 5 generado en simulador: Secuencia=5
+
+Simulando pérdida en tránsito: el evento 4 no llega al Mediador, pero sí le llega directamente el evento 5...
+POST evento 5 al Mediador: HTTP 202, Respuesta: {'idEvento': 'a6d210a5-d698-4100-b4e9-b849849c1b1f', 'recibido': True}
+Esperando que el canal despierte al worker y recupere automáticamente el evento 4 faltante...
+
+Verificación en BD: Estado de huecos en MED.SecuenciaHueco:
+IdHueco     IdTransportista SecuenciaEsperada SecuenciaRecibida Resuelto
+----------- --------------- ----------------- ----------------- --------
+          5               7                 4                 5        1
+
+(1 rows affected)
+Verificación en BD: Secuencia contigua tras completar el hueco:
+IdTransportista UltimaSecuenciaContigua
+--------------- -----------------------
+              7                       5
+
+(1 rows affected)
+Verificación en BD: Todos los eventos en MED.EventoRecibido:
+IdEventoRecibido IdEvento                                                                         TipoEvento                               Secuencia   Procesado
+---------------- -------------------------------------------------------------------------------- ---------------------------------------- ----------- ---------
+            1022 9100c2dd-bce0-4443-9314-bcc4b419cd6f                                             RECEPCION_CONFIRMADA                               1         1
+            1023 9ad2200e-69f4-44f4-b26c-6063e3b867f0                                             BUS_ASIGNADO                                       2         1
+            1024 bea98431-4c9b-48ca-b4e2-182b0bec12fc                                             EN_VIAJE                                           3         1
+            1026 50b994d5-f57d-4642-9c79-ec596ccb94ef                                             ARRIBADO                                           4         1
+            1025 a6d210a5-d698-4100-b4e9-b849849c1b1f                                             ENTREGADO                                          5         0
+
+(5 rows affected)
+
+================================================================================
+PRUEBA B7 RECUPERACIÓN COMPLETADA EXITOSAMENTE CONFORME A REGLA R6 Y C2 v2.0
+================================================================================

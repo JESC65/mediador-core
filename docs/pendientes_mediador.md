@@ -25,6 +25,8 @@ Documento de seguimiento de tareas, pendientes técnicos y pruebas de aseguramie
 | 15 | Cerrado | idCorrelacion estable sin fecha (R5): persistido en MED.Envio (IdCorrelacionPrecio e IdCorrelacionRegistro), mismo UUID tras reiniciar Mediador. Evidencia en docs/arreglos_sin_azure/idcorrelacion_estable.txt | Nada |
 | 16 | Cerrado | Un solo formato de errores (R8): formato JSON unificado `{ error, detalle, campo, idCorrelacion }` para errores 4xx y 5xx mediante MediadorApiException y ManejadorExcepcionesMiddleware. Evidencia en docs/arreglos_sin_azure/r8_errores.txt y catálogo en docs/errores.md | Nada |
 | 17 | Cerrado | Bandeja de eventos del simulador (B7 y R6): persistencia local en bandeja_eventos.json previa al envío HTTP, sobre C2 v2.0 §5 con secuencias por transportista y endpoint GET /v1/eventos?desde=N. Evidencia en docs/arreglos_sin_azure/b7_bandeja.txt | Nada |
+| 18 | Cerrado | El nuevo sobre R6 y el status 202: recepción durable en MED.EventoRecibido con sobre C2 v2.0 §5 (Secuencia, VersionContrato, EntidadTipo, EntidadId, VersionEntidad, Emisor, HuellaCuerpo SHA-256), reacuse 202 sin reprocesar de eventos idénticos, registro de conflicto en BD (mismo ID, distinto body) y transiciones inválidas marcadas para MENSAJE_RECHAZADO sin responder 409. Evidencia en docs/arreglos_sin_azure/r6_sobre.txt | Nada |
+| 19 | Cerrado | La recuperación B7 y regla R6: parámetros t_recuperacion (5 min) y t_mensajes (7 días) validados al arranque; cliente ISimuladorTransportistaClient.RecuperarEventos (GET /v1/eventos?desde=N); worker RecuperacionEventosBackgroundService al arrancar, periódicamente y reactivo por canal ante detección de huecos de secuencia. Evidencia en docs/arreglos_sin_azure/b7_recuperacion.txt | Nada |
 
 ---
 
@@ -246,4 +248,52 @@ Documento de seguimiento de tareas, pendientes técnicos y pruebas de aseguramie
   - Se consultó `GET /v1/eventos?desde=0`: se recuperaron exactamente los 3 eventos con secuencias 1, 2 y 3 en orden ascendente, cumpliendo con todos los campos de C2 v2.0 §5.
   - Se comprobó la supervivencia ante reinicio del servicio Simulador, validando que la consulta con `desde=2` devuelve únicamente el evento con secuencia 3.
   - Evidencia completa en [docs/arreglos_sin_azure/b7_bandeja.txt](file:///d:/Proyectos/Jelaf/Courier/mediador-core/docs/arreglos_sin_azure/b7_bandeja.txt) (y en el Simulador) y justificación en `README.md` del Simulador.
+- **Veredicto QA**: **Aprobado / Cerrado**.
+
+---
+
+### Corrección: Bloque 2 · El nuevo sobre R6 y el status 202
+
+- **Objetivo**: Adaptar la recepción de eventos del Mediador al sobre común C2 v2.0 §5 y la regla R6, garantizando persistencia durable antes de emitir `HTTP 202 Accepted`, swallow de reintentos idénticos, registro y rechazo de conflictos (mismo ID, distinto body), marcado de transiciones inválidas para emisión futura de `MENSAJE_RECHAZADO` sin responder 409, y control de secuencias contiguas con registro de huecos.
+- **Mecanismo Evaluado**:
+  - Script SQL idempotente `05_evento_sobre.sql`: agrega columnas `Secuencia`, `VersionContrato`, `EntidadTipo`, `EntidadId`, `VersionEntidad`, `Emisor`, `HuellaCuerpo`, `RequiereMensajeRechazado`, `MotivoRechazo` y `EsConflicto` a `MED.EventoRecibido`, retira la restricción UNIQUE sobre `IdEvento` para permitir auditar conflictos, y crea tablas `MED.TransportistaSecuencia` y `MED.SecuenciaHueco`.
+  - DTOs actualizados: [EntidadEventoDto.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.ApplicationCore/Dtos/EntidadEventoDto.cs), [EventoRequestDto.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.ApplicationCore/Dtos/EventoRequestDto.cs), [EventoParaGuardarDto.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.ApplicationCore/Dtos/EventoParaGuardarDto.cs) y [EventoRecibido.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Infrastructure/Models/EventoRecibido.cs).
+  - Lógica de negocio en [EventoMediadorService.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.ApplicationCore/Services/EventoMediadorService.cs):
+    - Identificación del envío con prioridad a `request.Entidad.Id` y fallback a `request.Datos["codigoSeguimiento"]` con comentario `TODO`.
+    - Detección de duplicados mediante huella SHA-256 (`HuellaCuerpo`): eventos idénticos responden 202 sin reprocesar; eventos con mismo ID y distinto body se guardan en BD con `EsConflicto = 1` y se rechazan con HTTP 409.
+    - Transiciones de estado inválidas: se guardan en BD con `RequiereMensajeRechazado = 1` y responden HTTP 202 Accepted sin corromper el estado del envío.
+    - Control de secuencias contiguas por transportista: avance monótono y registro de saltos en `MED.SecuenciaHueco`.
+  - Controlador [EventosController.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Presentation/Controllers/EventosController.cs): emite `HTTP 202 Accepted` únicamente después de guardar en BD y elimina errores 409 por transición de estado.
+  - Script de pruebas `test_r6_sobre.py`.
+- **Entorno de Prueba**:
+  - Mediador levantado en `http://localhost:5250`, SQL Server `MediadorDev`.
+- **Resultados Verificados**:
+  - **Escenario 1 (Duplicado idéntico)**: Envío inicial respondió `HTTP 202 Accepted`; segundo envío idéntico respondió `HTTP 202 Accepted` de inmediato sin duplicar registros ni reprocesar.
+  - **Escenario 2 (Conflicto de contenido)**: Mismo `idEvento` con cuerpo alterado fue registrado en BD con `EsConflicto = 1`, `RequiereMensajeRechazado = 1`, `MotivoRechazo = 'CONFLICTO_CONTENIDO'` y respondido con `HTTP 409 Conflict`.
+  - **Escenario 3 (Transición inválida sin 409)**: Petición `ENTREGADO` sobre envío en `CONFIRMADO` respondió `HTTP 202 Accepted`, se guardó en BD con `RequiereMensajeRechazado = 1` y el estado del envío quedó intacto en `CONFIRMADO`.
+  - **Escenario 4 (Hueco de secuencia)**: Envío con salto de secuencia registró el hueco en `MED.SecuenciaHueco` (`SecuenciaEsperada = 3, SecuenciaRecibida = 4, Resuelto = 0`) y la secuencia contigua se mantuvo congelada en 2.
+  - Evidencia completa en [docs/arreglos_sin_azure/r6_sobre.txt](file:///d:/Proyectos/Jelaf/Courier/mediador-core/docs/arreglos_sin_azure/r6_sobre.txt).
+- **Veredicto QA**: **Aprobado / Cerrado**.
+
+---
+
+### Corrección: Bloque 3 · La recuperación (Operación B7 y Regla R6)
+
+- **Objetivo**: Asegurar que el Mediador recupere automáticamente los eventos no recibidos desde la bandeja B7 de cada transportista activa (`GET /v1/eventos?desde=N`), tanto al arrancar la aplicación como periódicamente (`t_recuperacion`) y de forma reactiva inmediata ante la detección de huecos de secuencia, avanzando la secuencia contigua y resolviendo los huecos sin duplicar eventos.
+- **Mecanismo Evaluado**:
+  - Parámetros `t_recuperacion` (5 minutos) y `t_mensajes` (7 días) incorporados en [ParametrosOptions.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.ApplicationCore/Utilidades/ParametrosOptions.cs), configurados en `appsettings.json` y validados contra `TimeSpan.Zero` al arrancar en [Program.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Presentation/Program.cs).
+  - Método `RecuperarEventos` agregado a `ISimuladorTransportistaClient` e implementado en [SimuladorTransportistaClient.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Infrastructure/Repositories/SimuladorTransportistaClient.cs) apuntando a `GET /v1/eventos?desde={desdeSecuencia}`.
+  - Canal reactivo `INotificadorHuecoSecuencia` / `NotificadorHuecoSecuencia` inyectado en `EventoMediadorService` para despertar al worker sin demoras al registrar un hueco.
+  - BackgroundService `RecuperacionEventosBackgroundService` en `Mediador.Presentation/Services/`:
+    - Ejecuta recuperación al arranque.
+    - Maneja doble trigger (temporizador `t_recuperacion` y lector de canal de huecos con cancelación limpia).
+    - Crea un `IServiceScope` por ciclo, consulta transportistas activas, lee `UltimaSecuenciaContigua`, llama a B7 y procesa los eventos en orden estricto de secuencia mediante `IEventoMediadorService.ProcesarEvento()`.
+  - Script automatizado de pruebas `test_b7_recuperacion.py`.
+- **Entorno de Prueba**:
+  - Mediador levantado en `http://localhost:5250`, Simulador EETT en `http://localhost:5201`, SQL Server `MediadorDev`.
+- **Resultados Verificados**:
+  - **Fase 1 (Mediador apagado)**: Se generaron 3 eventos (`RECEPCION_CONFIRMADA`, `BUS_ASIGNADO`, `EN_VIAJE`) en el Simulador; quedaron persistidos en su bandeja con secuencias 1, 2 y 3.
+  - **Fase 2 (Arranque con recuperación B7)**: Al levantar el Mediador, el worker ejecutó la recuperación inicial, recuperó los 3 eventos por B7 y los guardó en `MED.EventoRecibido` (secuencias 1, 2 y 3). La secuencia contigua en `MED.TransportistaSecuencia` avanzó exactamente a 3.
+  - **Fase 3 (Hueco inducido y autorecuperación reactiva)**: En el simulador se generaron las secuencias 4 (`ARRIBADO`) y 5 (`ENTREGADO`). Se simuló la pérdida en red del evento 4 y se envió directamente el evento 5 al Mediador. El Mediador acusó `HTTP 202 Accepted`, registró el hueco (esperada 4, recibida 5) y despertó al worker por el canal; el worker consultó B7 (`desde=3`), recuperó el evento 4 faltante, completó la secuencia hasta 5 (`UltimaSecuenciaContigua = 5`), marcó el hueco como resuelto (`Resuelto = 1`) y reacusó el evento 5 sin duplicarlo.
+  - Evidencia completa en [docs/arreglos_sin_azure/b7_recuperacion.txt](file:///d:/Proyectos/Jelaf/Courier/mediador-core/docs/arreglos_sin_azure/b7_recuperacion.txt).
 - **Veredicto QA**: **Aprobado / Cerrado**.

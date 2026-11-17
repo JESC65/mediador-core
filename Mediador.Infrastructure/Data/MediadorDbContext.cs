@@ -30,6 +30,8 @@ public class MediadorDbContext : DbContext
     public DbSet<Cotizacion> Cotizaciones => Set<Cotizacion>();
     public DbSet<EventoRecibido> EventosRecibidos => Set<EventoRecibido>();
     public DbSet<EnvioPersona> EnvioPersonas => Set<EnvioPersona>();
+    public DbSet<TransportistaSecuencia> TransportistaSecuencias => Set<TransportistaSecuencia>();
+    public DbSet<SecuenciaHueco> SecuenciasHuecos => Set<SecuenciaHueco>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -107,6 +109,26 @@ public class MediadorDbContext : DbContext
             e.ToTable("EventoRecibido", "MED");
             e.HasKey(x => x.IdEventoRecibido);
             e.Property(x => x.IdEventoRecibido).ValueGeneratedOnAdd();
+            e.Property(x => x.IdEvento).HasMaxLength(80).IsRequired();
+            e.Property(x => x.TipoEvento).HasMaxLength(40).IsRequired();
+            e.Property(x => x.VersionContrato).HasMaxLength(10);
+            e.Property(x => x.EntidadTipo).HasMaxLength(30);
+            e.Property(x => x.EntidadId).HasMaxLength(80);
+            e.Property(x => x.Emisor).HasMaxLength(50);
+            e.Property(x => x.HuellaCuerpo).HasMaxLength(256);
+            e.Property(x => x.MotivoRechazo).HasMaxLength(100);
+        });
+        modelBuilder.Entity<TransportistaSecuencia>(e =>
+        {
+            e.ToTable("TransportistaSecuencia", "MED");
+            e.HasKey(x => x.IdTransportista);
+            e.Property(x => x.IdTransportista).ValueGeneratedNever();
+        });
+        modelBuilder.Entity<SecuenciaHueco>(e =>
+        {
+            e.ToTable("SecuenciaHueco", "MED");
+            e.HasKey(x => x.IdHueco);
+            e.Property(x => x.IdHueco).ValueGeneratedOnAdd();
         });
         modelBuilder.Entity<EnvioPersona>(e =>
         {

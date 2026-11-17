@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using Mediador.ApplicationCore.Dtos;
 using Mediador.ApplicationCore.Dtos.Simulador;
 using Mediador.ApplicationCore.Interfaces;
 using Mediador.ApplicationCore.Utilidades;
@@ -44,6 +45,38 @@ public class SimuladorTransportistaClient : ISimuladorTransportistaClient
         string urlBaseTransportista, SimuladorRegistrarRequestDto request) =>
         Llamar<SimuladorRegistrarRequestDto, SimuladorRegistrarResponseDto>(
             urlBaseTransportista, "registrar", request, _parametros.t_registro_eett);
+
+    public async Task<ResultadoLlamadaSimuladorDto<List<EventoRequestDto>>> RecuperarEventos(
+        string urlBaseTransportista, int desdeSecuencia)
+    {
+        var url = $"{urlBaseTransportista.TrimEnd('/')}/v1/eventos?desde={desdeSecuencia}";
+        var cliente = _httpClientFactory.CreateClient();
+        using var cts = new CancellationTokenSource(_parametros.t_registro_eett);
+
+        try
+        {
+            using var response = await cliente.GetAsync(url, cts.Token);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("El simulador respondió {StatusCode} en {Url}", (int)response.StatusCode, url);
+                return ResultadoLlamadaSimuladorDto<List<EventoRequestDto>>.Falla($"ERROR_HTTP_{(int)response.StatusCode}");
+            }
+
+            var opciones = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);
+            var eventos = await response.Content.ReadFromJsonAsync<List<EventoRequestDto>>(opciones, cts.Token);
+            return ResultadoLlamadaSimuladorDto<List<EventoRequestDto>>.Ok(eventos ?? new List<EventoRequestDto>());
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning("Se agotó la espera llamando a {Url}", url);
+            return ResultadoLlamadaSimuladorDto<List<EventoRequestDto>>.Falla("TIMEOUT");
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "No se pudo conectar a {Url}", url);
+            return ResultadoLlamadaSimuladorDto<List<EventoRequestDto>>.Falla("SIN_CONEXION");
+        }
+    }
 
     private async Task<ResultadoLlamadaSimuladorDto<TRespuesta>> Llamar<TPeticion, TRespuesta>(
         string urlBaseTransportista, string ruta, TPeticion request, TimeSpan esperaMaxima)

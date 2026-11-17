@@ -41,5 +41,11 @@ public class ParametrosOptions
 
     [ConfigurationKeyName("t_vigencia_cotizacion")]
     public TimeSpan t_vigencia_cotizacion { get; set; } = TimeSpan.FromHours(2);
+
+    [ConfigurationKeyName("t_recuperacion")]
+    public TimeSpan t_recuperacion { get; set; } = TimeSpan.FromMinutes(5);
+
+    [ConfigurationKeyName("t_mensajes")]
+    public TimeSpan t_mensajes { get; set; } = TimeSpan.FromDays(7);
 }
 

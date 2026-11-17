@@ -1,3 +1,4 @@
+using Mediador.ApplicationCore.Dtos;
 using Mediador.ApplicationCore.Dtos.Simulador;
 
 namespace Mediador.ApplicationCore.Interfaces;
@@ -18,4 +19,8 @@ public interface ISimuladorTransportistaClient
     /// <summary>POST {urlBaseTransportista}/registrar — espera máxima 30 segundos (3.3).</summary>
     Task<ResultadoLlamadaSimuladorDto<SimuladorRegistrarResponseDto>> Registrar(
         string urlBaseTransportista, SimuladorRegistrarRequestDto request);
+
+    /// <summary>B7: GET {urlBaseTransportista}/v1/eventos?desde={desdeSecuencia} — recuperación de eventos (C2 v2.0 §5).</summary>
+    Task<ResultadoLlamadaSimuladorDto<List<EventoRequestDto>>> RecuperarEventos(
+        string urlBaseTransportista, int desdeSecuencia);
 }
