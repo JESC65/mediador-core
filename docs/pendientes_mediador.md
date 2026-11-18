@@ -27,6 +27,8 @@ Documento de seguimiento de tareas, pendientes técnicos y pruebas de aseguramie
 | 17 | Cerrado | Bandeja de eventos del simulador (B7 y R6): persistencia local en bandeja_eventos.json previa al envío HTTP, sobre C2 v2.0 §5 con secuencias por transportista y endpoint GET /v1/eventos?desde=N. Evidencia en docs/arreglos_sin_azure/b7_bandeja.txt | Nada |
 | 18 | Cerrado | El nuevo sobre R6 y el status 202: recepción durable en MED.EventoRecibido con sobre C2 v2.0 §5 (Secuencia, VersionContrato, EntidadTipo, EntidadId, VersionEntidad, Emisor, HuellaCuerpo SHA-256), reacuse 202 sin reprocesar de eventos idénticos, registro de conflicto en BD (mismo ID, distinto body) y transiciones inválidas marcadas para MENSAJE_RECHAZADO sin responder 409. Evidencia en docs/arreglos_sin_azure/r6_sobre.txt | Nada |
 | 19 | Cerrado | La recuperación B7 y regla R6: parámetros t_recuperacion (5 min) y t_mensajes (7 días) validados al arranque; cliente ISimuladorTransportistaClient.RecuperarEventos (GET /v1/eventos?desde=N); worker RecuperacionEventosBackgroundService al arrancar, periódicamente y reactivo por canal ante detección de huecos de secuencia. Evidencia en docs/arreglos_sin_azure/b7_recuperacion.txt | Nada |
+| 20 | Cerrado | Reintentos de eventos en el simulador (Reglas R6 y R12): parámetros `r_esperas` (`1m, 5m, 15m, 1h`) y `r_limite` (`24h`) validados al arranque, entrega confirmada solo con HTTP 202, orden estricto por transportista en `bandeja_eventos.json` (sin romper B7), errores permanentes R8 marcados `NO_ENTREGADO` sin reintento con alerta `LogError`, y worker `ReintentoEventosBackgroundService`. Evidencia en `mediador-simulador-eett/docs/arreglos_sin_azure/r6_reintentos.txt`. | Nada |
+| 21 | Cerrado | Escenarios de prueba C2 §10 (`DUPLICADO`, `HUECO` y `X-Escenario` en B5): `POST /simular-evento` soporta `DUPLICADO` (envía 2 veces el mismo evento; Mediador procesa 1 sola vez) y `HUECO` (guarda en bandeja como `OMITIDO_HUECO` sin enviar para que Mediador recupere por B7); `POST /anular` (B5) soporta `X-Escenario` (`ERROR_500`, `NO_DISPONIBLE`, `SIN_RESPUESTA`, `LENTO`, `NORMAL`). Evidencia en `mediador-simulador-eett/docs/arreglos_sin_azure/c2_escenarios.txt`. | Nada |
 
 ---
 
@@ -296,4 +298,75 @@ Documento de seguimiento de tareas, pendientes técnicos y pruebas de aseguramie
   - **Fase 2 (Arranque con recuperación B7)**: Al levantar el Mediador, el worker ejecutó la recuperación inicial, recuperó los 3 eventos por B7 y los guardó en `MED.EventoRecibido` (secuencias 1, 2 y 3). La secuencia contigua en `MED.TransportistaSecuencia` avanzó exactamente a 3.
   - **Fase 3 (Hueco inducido y autorecuperación reactiva)**: En el simulador se generaron las secuencias 4 (`ARRIBADO`) y 5 (`ENTREGADO`). Se simuló la pérdida en red del evento 4 y se envió directamente el evento 5 al Mediador. El Mediador acusó `HTTP 202 Accepted`, registró el hueco (esperada 4, recibida 5) y despertó al worker por el canal; el worker consultó B7 (`desde=3`), recuperó el evento 4 faltante, completó la secuencia hasta 5 (`UltimaSecuenciaContigua = 5`), marcó el hueco como resuelto (`Resuelto = 1`) y reacusó el evento 5 sin duplicarlo.
   - Evidencia completa en [docs/arreglos_sin_azure/b7_recuperacion.txt](file:///d:/Proyectos/Jelaf/Courier/mediador-core/docs/arreglos_sin_azure/b7_recuperacion.txt).
+- **Veredicto QA**: **Aprobado / Cerrado**.
+
+---
+
+### Corrección: Bloque 2 · Reintentos de eventos en el simulador (Reglas R6 y R12)
+
+- **Objetivo**: Garantizar que el Simulador EETT implemente el mecanismo formal de reintentos de eventos según R6 y R12: parámetros de configuración `r_esperas` y `r_limite` validados al arranque, seguimiento de estado de entrega en `bandeja_eventos.json` (sin alterar el sobre limpio `EventoMediadorDto` expuesto en B7), reintento periódico en segundo plano con orden estricto por transportista, confirmación de entrega únicamente ante `HTTP 202 Accepted`, y descarte inmediato sin reintentos con alerta `LogError` ante errores permanentes R8 (400, 401, 403, 404, 409, 422) o expiración de `r_limite`.
+- **Mecanismo Evaluado**:
+  - Clase de opciones `ParametrosEventosOptions` (ApplicationCore/Utils) mapeada a la sección `"Parametros"` de `appsettings.json` con `r_esperas` (`["00:01:00", "00:05:00", "00:15:00", "01:00:00"]`) y `r_limite` (`"1.00:00:00"`), validada al arranque con `ValidateOnStart()` en `Program.cs`.
+  - Bandeja persistente con metadatos de entrega: clase interna `BandejaEventoItem` en [BandejaEventosRepository.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-simulador-eett/SimuladorEETT.Infrastructure/Repositories/BandejaEventosRepository.cs) con seguimiento de `EstadoEntrega` (`PENDIENTE`, `ENTREGADO`, `NO_ENTREGADO`), `FechaCreacion`, `Intentos`, `ProximoIntento` y `UltimoError`.
+  - Preservación estricta de B7: `GET /v1/eventos?desde=N` (`ObtenerEventosDesdeAsync`) proyecta únicamente los sobres `EventoMediadorDto` limpios (C2 v2.0 §5) sin exponer campos internos de reintento.
+  - Reglas de entrega y errores permanentes en [EventoMediadorService.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-simulador-eett/SimuladorEETT.Infrastructure/Services/EventoMediadorService.cs): entrega confirmada únicamente ante `HttpStatusCode.Accepted` (HTTP 202); errores permanentes (400, 401, 403, 404, 409, 422) o superación de `r_limite` se marcan de inmediato como `NO_ENTREGADO` emitiendo `_logger.LogError`; fallas de red o errores temporales mantienen el estado `PENDIENTE` calculando el siguiente intervalo según `r_esperas`.
+  - Orden estricto por transportista y worker: [ReintentoEventosBackgroundService.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-simulador-eett/SimuladorEETT.Presentation/Services/ReintentoEventosBackgroundService.cs) en el Simulador revisa eventos `PENDIENTE` cuyo `ProximoIntento <= ahora`, bloqueando envíos de secuencia N+1 si la secuencia N de la misma transportista sigue pendiente.
+  - Script automatizado de pruebas `test_r6_reintentos.py`.
+- **Entorno de Prueba**:
+  - Simulador EETT levantado en `https://localhost:7201`, Mediador en `https://localhost:7250`, SQL Server `MediadorDev`.
+  - Configuración temporal de prueba en `appsettings.Development.json` con intervalos acelerados: `r_esperas: ["00:00:02", "00:00:04", "00:00:08"]`.
+- **Resultados Verificados**:
+  - **Prueba A (Reintento ante Mediador apagado y entrega automática al encender)**:
+    - Se disparó `POST /simular-evento` para `RECEPCION_CONFIRMADA` (secuencia 6, `MED-2026-000001`) con el Mediador fuera de línea.
+    - El Simulador persistió el evento `575fff74-a4ee-43e3-b6e3-14e7589e1022` en bandeja como `PENDIENTE` (`Intentos: 1`, `enviado: false`), registrando la excepción de conexión (`No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión`).
+    - En `MED.EventoRecibido` de SQL Server se comprobó 0 filas.
+    - Se encendió el Mediador: a los 4.55 s el worker detectó el servicio activo, reenvió el evento, obtuvo `HTTP 202 Accepted` y actualizó la bandeja a `ENTREGADO` (`Intentos: 4`, `ProximoIntento: null`, `UltimoError: null`).
+    - En `MED.EventoRecibido` se verificó exactamente 1 fila registrada (`IdEventoRecibido: 2004`).
+    - Se verificó que `GET /v1/eventos?desde=0` devolvió el sobre limpio `EventoMediadorDto` sin campos de control interno.
+  - **Prueba B (Error permanente sin reintento según R8 / 409 Conflict)**:
+    - Con el Mediador encendido, se envió un evento con el mismo `idEvento` pero alterando sus datos para forzar un conflicto de contenido.
+    - El Mediador respondió `HTTP 409 Conflict` (`CONFLICTO_ID_EVENTO`).
+    - El Simulador marcó inmediatamente el ítem en bandeja como `NO_ENTREGADO` (`Intentos: 1`, `ProximoIntento: null`, `UltimoError: "Error permanente HTTP 409: ..."`).
+    - Se esperaron 4 segundos (tiempo mayor al primer intervalo de reintento de 2s) y se comprobó que el contador de intentos permaneció intacto en 1 sin emitir nuevos envíos.
+    - Se confirmó en los logs del Simulador el registro de la alerta `LogError`: `Alerta R8: Error permanente HTTP 409 al enviar evento 575fff74-a4ee-43e3-b6e3-14e7589e1022 ... Marcado como NO_ENTREGADO sin reintento.`
+  - Evidencia completa en [docs/arreglos_sin_azure/r6_reintentos.txt](file:///d:/Proyectos/Jelaf/Courier/mediador-simulador-eett/docs/arreglos_sin_azure/r6_reintentos.txt).
+- **Veredicto QA**: **Aprobado / Cerrado**.
+
+---
+
+### Corrección: Bloque 3 · Escenarios de prueba C2 §10 (DUPLICADO, HUECO y X-Escenario en B5)
+
+- **Objetivo**: Incorporar en el Simulador EETT el soporte de escenarios de prueba avanzados C2 §10 (`DUPLICADO` y `HUECO` en `POST /simular-evento`) y la simulación controlada de fallas mediante `X-Escenario` en la operación B5 (`POST /anular`), permitiendo validar la resiliencia del Mediador ante eventos duplicados, saltos de secuencia recuperables vía B7 y contingencias en la anulación de envíos.
+- **Mecanismo Evaluado**:
+  - Enum `Escenario` extendido en [Escenario.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-simulador-eett/SimuladorEETT.ApplicationCore/Dtos/Escenario.cs) con `DUPLICADO` y `HUECO`.
+  - Lectura del encabezado `X-Escenario` en [SimularEventoController.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-simulador-eett/SimuladorEETT.Presentation/Controllers/SimularEventoController.cs) mediante `EscenarioHeader.Leer(Request)`.
+  - Lógica de simulación de eventos en [EventoMediadorService.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-simulador-eett/SimuladorEETT.Infrastructure/Services/EventoMediadorService.cs):
+    - `DUPLICADO`: Guarda el evento una sola vez en bandeja, fija temporalmente `ProximoIntento` a futuro para evitar condiciones de carrera con el worker de reintentos, despacha 2 envíos HTTP POST consecutivos con una pausa de 150 ms para permitir la persistencia previa en BD del Mediador, comprueba que ambos respondan `HTTP 202 Accepted` y marca el evento como `ENTREGADO` (`Intentos: 2`).
+    - `HUECO`: Guarda el evento en bandeja como `OMITIDO_HUECO` (`ProximoIntento: null`, disponible para B7 pero ignorado por el worker de reintentos para no bloquear la cola ni generar reenvíos indeseados), sin enviarlo por HTTP hacia el Mediador para inducir un salto de secuencia cuando se despache N+1.
+  - Soporte de `X-Escenario` en B5 [AnularController.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-simulador-eett/SimuladorEETT.Presentation/Controllers/AnularController.cs):
+    - `NO_DISPONIBLE`: Responde HTTP 200 con `AnularResponseDto { Anulado = false, Motivo = "NO_DISPONIBLE" }`.
+    - `ERROR_500`: Responde `StatusCode(500)`.
+    - `SIN_RESPUESTA`: `Task.Delay(Timeout.InfiniteTimeSpan, HttpContext.RequestAborted)` retornando `EmptyResult`.
+    - `LENTO`: `Task.Delay(TimeSpan.FromSeconds(20))` previo a la anulación.
+    - `NORMAL`: Ejecución regular delegando en `_registroService.Anular`.
+  - Script automatizado de pruebas `test_c2_escenarios.py`.
+- **Entorno de Prueba**:
+  - Simulador EETT en `https://localhost:7201`, Mediador en `https://localhost:7250`, SQL Server `MediadorDev`.
+- **Resultados Verificados**:
+  - **Prueba 1 (Escenario DUPLICADO en POST /simular-evento)**:
+    - Se envió `POST /simular-evento` con payload `RECEPCION_CONFIRMADA` (secuencia 6, `MED-2026-000002`) y `X-Escenario: DUPLICADO`.
+    - El Simulador despachó 2 llamadas HTTP consecutivas hacia el Mediador; ambas respondieron `HTTP 202 Accepted` en 1.12 s.
+    - En bandeja el evento `be2eb310-8333-45d8-abcd-82f02dbe3dea` quedó en `ENTREGADO` con `Intentos: 2`.
+    - En SQL Server (`MED.EventoRecibido`) se confirmó la inserción de **exactamente 1 registro** (`IdEventoRecibido: 2016`), validando que la idempotencia R5 del Mediador reacusó el segundo POST sin duplicar filas.
+  - **Prueba 2 (Escenario HUECO en POST /simular-evento y Recuperación B7)**:
+    - Se envió evento N (secuencia 7, `BUS_ASIGNADO`) con `X-Escenario: HUECO`: guardado en bandeja como `OMITIDO_HUECO` con `enviado: false`. En SQL Server se confirmó 0 registros en `MED.EventoRecibido`.
+    - Se envió evento N+1 (secuencia 8, `EN_VIAJE`) con `X-Escenario: NORMAL`: respondió `HTTP 202 Accepted`.
+    - El Mediador detectó la brecha de secuencia (esperada 7, recibida 8), registró el hueco en `MED.SecuenciaHueco` (`IdHueco: 1007`), despertó reactivamente su worker B7 mediante canal, consultó `GET /v1/eventos?desde=5`, recuperó el evento 7 en 1.50 s y resolvió el hueco (`Resuelto = 1`, `FechaResolucion` registrada).
+    - `MED.TransportistaSecuencia` avanzó a 8 (`UltimaSecuenciaContigua = 8`) y en `MED.EventoRecibido` quedaron ambos eventos registrados (`2018` para secuencia 7 y `2017` para secuencia 8).
+  - **Prueba 3 (Escenarios en B5 POST /anular)**:
+    - `X-Escenario: ERROR_500` -> Respondió `HTTP 500`.
+    - `X-Escenario: NO_DISPONIBLE` -> Respondió `HTTP 200 OK` con `{ "anulado": false, "motivo": "NO_DISPONIBLE" }`.
+    - `X-Escenario: SIN_RESPUESTA` -> Agotó el timeout de cliente (2.5s) con `The read operation timed out`.
+    - `X-Escenario: NORMAL` -> Ejecutó el flujo normal respondiendo según el estado de la guía.
+  - Evidencia completa en [docs/arreglos_sin_azure/c2_escenarios.txt](file:///d:/Proyectos/Jelaf/Courier/mediador-simulador-eett/docs/arreglos_sin_azure/c2_escenarios.txt).
 - **Veredicto QA**: **Aprobado / Cerrado**.
