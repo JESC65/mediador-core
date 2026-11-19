@@ -121,67 +121,83 @@ public class ConfirmacionMediadorService : IConfirmacionMediadorService
             }
 
             // Paso 4 — Consultar el precio real (B3).
-            // R5: idCorrelacion único y sin fecha, generado y guardado en MED.Envio antes de la primera llamada.
-            var idCorrelacionPrecio = candidata.IdCorrelacionPrecio;
-            if (string.IsNullOrWhiteSpace(idCorrelacionPrecio))
+            // Si candidata.PrecioEnLinea == true: flujo actual con B3.
+            // Si candidata.PrecioEnLinea == false: confirmar con precio estimado (sin B3).
+            decimal precioReal;
+            bool precioEsEstimado;
+
+            if (candidata.PrecioEnLinea)
             {
-                idCorrelacionPrecio = await _confirmacionRepositorio.AsegurarIdCorrelacionPrecio(candidata.IdEnvio);
-                candidata.IdCorrelacionPrecio = idCorrelacionPrecio;
-            }
+                precioEsEstimado = false;
 
-            var solicitudPrecio = new SimuladorCotizarRequestDto
-            {
-                IdCorrelacion = idCorrelacionPrecio,
-                IdRuta = candidata.CodigoRutaExterno,
-                TipoCarga = candidata.TipoCarga,
-                Paquetes = paquetes
-                    .SelectMany(p => Enumerable.Repeat(p, Math.Max(p.Cantidad, 1)))
-                    .Select(p => new SimuladorPaqueteCotizarDto
-                    {
-                        PesoKg = p.PesoKg,
-                        LargoCm = p.LargoCm,
-                        AnchoCm = p.AnchoCm,
-                        AltoCm = p.AltoCm,
-                        EsFragil = p.EsFragil
-                    }).ToList()
-            };
-
-            var resultadoPrecio = await LlamarConReintentos(
-                () => _simulador.ConsultarPrecio(candidata.UrlConector!, solicitudPrecio));
-
-            if (!resultadoPrecio.Exitosa)
-            {
-                await _confirmacionRepositorio.MarcarDescartada(candidata.IdCotizacion, "SIN_RESPUESTA");
-                candidata = await _confirmacionRepositorio.ObtenerSiguienteAlternativa(candidata.IdEnvio, candidata.IdOpcion);
-                continue;
-            }
-
-            var respuestaPrecio = resultadoPrecio.Respuesta!;
-
-            if (!respuestaPrecio.Disponible)
-            {
-                await _confirmacionRepositorio.MarcarDescartada(candidata.IdCotizacion, respuestaPrecio.Motivo ?? "NO_DISPONIBLE");
-                candidata = await _confirmacionRepositorio.ObtenerSiguienteAlternativa(candidata.IdEnvio, candidata.IdOpcion);
-                continue;
-            }
-
-            var precioReal = respuestaPrecio.Precio ?? 0;
-
-            if (precioReal != candidata.PrecioProveedor)
-            {
-                // Formato tomado literalmente del ejemplo de A2 en el contrato: "OPT-B2C9-R1".
-                var idOpcionNueva = $"{candidata.IdOpcion}-R1";
-                await _confirmacionRepositorio.CrearCotizacionPorCambioPrecio(candidata, precioReal, idOpcionNueva);
-
-                return new ConfirmarResponseDto
+                // R5: idCorrelacion único y sin fecha, generado y guardado en MED.Envio antes de la primera llamada.
+                var idCorrelacionPrecio = candidata.IdCorrelacionPrecio;
+                if (string.IsNullOrWhiteSpace(idCorrelacionPrecio))
                 {
-                    IdCorrelacion = request.IdCorrelacion,
-                    Estado = "PRECIO_CAMBIO",
-                    PrecioReferencial = candidata.PrecioProveedor,
-                    PrecioReal = precioReal,
-                    RequiereConfirmacion = true,
-                    IdOpcionActualizada = idOpcionNueva
+                    idCorrelacionPrecio = await _confirmacionRepositorio.AsegurarIdCorrelacionPrecio(candidata.IdEnvio);
+                    candidata.IdCorrelacionPrecio = idCorrelacionPrecio;
+                }
+
+                var solicitudPrecio = new SimuladorCotizarRequestDto
+                {
+                    IdCorrelacion = idCorrelacionPrecio,
+                    IdRuta = candidata.CodigoRutaExterno,
+                    TipoCarga = candidata.TipoCarga,
+                    Paquetes = paquetes
+                        .SelectMany(p => Enumerable.Repeat(p, Math.Max(p.Cantidad, 1)))
+                        .Select(p => new SimuladorPaqueteCotizarDto
+                        {
+                            PesoKg = p.PesoKg,
+                            LargoCm = p.LargoCm,
+                            AnchoCm = p.AnchoCm,
+                            AltoCm = p.AltoCm,
+                            EsFragil = p.EsFragil
+                        }).ToList()
                 };
+
+                var resultadoPrecio = await LlamarConReintentos(
+                    () => _simulador.ConsultarPrecio(candidata.UrlConector!, solicitudPrecio));
+
+                if (!resultadoPrecio.Exitosa)
+                {
+                    await _confirmacionRepositorio.MarcarDescartada(candidata.IdCotizacion, "SIN_RESPUESTA");
+                    candidata = await _confirmacionRepositorio.ObtenerSiguienteAlternativa(candidata.IdEnvio, candidata.IdOpcion);
+                    continue;
+                }
+
+                var respuestaPrecio = resultadoPrecio.Respuesta!;
+
+                if (!respuestaPrecio.Disponible)
+                {
+                    await _confirmacionRepositorio.MarcarDescartada(candidata.IdCotizacion, respuestaPrecio.Motivo ?? "NO_DISPONIBLE");
+                    candidata = await _confirmacionRepositorio.ObtenerSiguienteAlternativa(candidata.IdEnvio, candidata.IdOpcion);
+                    continue;
+                }
+
+                precioReal = respuestaPrecio.Precio ?? 0;
+
+                if (precioReal != candidata.PrecioProveedor)
+                {
+                    // Formato tomado literalmente del ejemplo de A2 en el contrato: "OPT-B2C9-R1".
+                    var idOpcionNueva = $"{candidata.IdOpcion}-R1";
+                    await _confirmacionRepositorio.CrearCotizacionPorCambioPrecio(candidata, precioReal, idOpcionNueva);
+
+                    return new ConfirmarResponseDto
+                    {
+                        IdCorrelacion = request.IdCorrelacion,
+                        Estado = "PRECIO_CAMBIO",
+                        PrecioReferencial = candidata.PrecioProveedor,
+                        PrecioReal = precioReal,
+                        RequiereConfirmacion = true,
+                        IdOpcionActualizada = idOpcionNueva
+                    };
+                }
+            }
+            else
+            {
+                // Sin B3: usar directamente candidata.PrecioProveedor como precioReal
+                precioReal = candidata.PrecioProveedor ?? 0m;
+                precioEsEstimado = true;
             }
 
             // Paso 6 (adelantado) — si ya tenía código asignado (reintento de PENDIENTE_CONFIRMACION),
@@ -253,7 +269,7 @@ public class ConfirmacionMediadorService : IConfirmacionMediadorService
             var fechaConfirmacion = RelojLima.Ahora();
             var exito = await _confirmacionRepositorio.ConfirmarTransaccional(
                 candidata.IdEnvio, candidata.IdCotizacion, candidata.IdTransportista,
-                precioReal, codigoSeguimiento, fechaConfirmacion);
+                precioReal, codigoSeguimiento, fechaConfirmacion, precioEsEstimado);
 
             if (!exito)
             {
@@ -279,6 +295,7 @@ public class ConfirmacionMediadorService : IConfirmacionMediadorService
                 NombreTransportista = candidata.NombreTransportista,
                 PrecioFinal = precioReal,
                 PrecioCambio = false,
+                PrecioEsEstimado = precioEsEstimado,
                 FechaConfirmacion = fechaConfirmacion
             };
         }

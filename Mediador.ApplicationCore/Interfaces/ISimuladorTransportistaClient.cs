@@ -23,4 +23,8 @@ public interface ISimuladorTransportistaClient
     /// <summary>B7: GET {urlBaseTransportista}/v1/eventos?desde={desdeSecuencia} — recuperación de eventos (C2 v2.0 §5).</summary>
     Task<ResultadoLlamadaSimuladorDto<List<EventoRequestDto>>> RecuperarEventos(
         string urlBaseTransportista, int desdeSecuencia);
+
+    /// <summary>B0: GET {urlBaseTransportista}/v1/capacidades — capacidades de la transportista (C2 v2.0 §3).</summary>
+    Task<ResultadoLlamadaSimuladorDto<CapacidadesResponseDto>> ObtenerCapacidades(
+        string urlBaseTransportista);
 }

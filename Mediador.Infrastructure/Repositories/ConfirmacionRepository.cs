@@ -28,6 +28,8 @@ public class ConfirmacionRepository : IConfirmacionRepository
             from tarifa in tarifaJoin.DefaultIfEmpty()
             join ruta in _db.Rutas on (tarifa != null ? tarifa.IdRuta : -1) equals ruta.IdRuta into rutaJoin
             from ruta in rutaJoin.DefaultIfEmpty()
+            join cap in _db.TransportistasCapacidades on cot.IdTransportista equals cap.IdTransportista into capJoin
+            from cap in capJoin.DefaultIfEmpty()
             select new CotizacionParaConfirmarDto
             {
                 IdCotizacion = cot.IdCotizacion,
@@ -39,6 +41,7 @@ public class ConfirmacionRepository : IConfirmacionRepository
                 IdTransportista = cot.IdTransportista,
                 NombreTransportista = transportista.RazonSocial,
                 UrlConector = transportista.UrlConector,
+                PrecioEnLinea = cap != null ? cap.PrecioEnLinea : true,
                 CodigoRutaExterno = ruta != null ? ruta.CodigoRutaExterno : string.Empty,
                 TipoCarga = envio.TipoCarga ?? string.Empty,
                 CodigoSeguimientoEnvio = envio.CodigoSeguimiento,
@@ -61,6 +64,8 @@ public class ConfirmacionRepository : IConfirmacionRepository
             from tarifa in tarifaJoin.DefaultIfEmpty()
             join ruta in _db.Rutas on (tarifa != null ? tarifa.IdRuta : -1) equals ruta.IdRuta into rutaJoin
             from ruta in rutaJoin.DefaultIfEmpty()
+            join cap in _db.TransportistasCapacidades on cot.IdTransportista equals cap.IdTransportista into capJoin
+            from cap in capJoin.DefaultIfEmpty()
             orderby cot.PrecioProveedor
             select new CotizacionParaConfirmarDto
             {
@@ -73,6 +78,7 @@ public class ConfirmacionRepository : IConfirmacionRepository
                 IdTransportista = cot.IdTransportista,
                 NombreTransportista = transportista.RazonSocial,
                 UrlConector = transportista.UrlConector,
+                PrecioEnLinea = cap != null ? cap.PrecioEnLinea : true,
                 CodigoRutaExterno = ruta != null ? ruta.CodigoRutaExterno : string.Empty,
                 TipoCarga = envio.TipoCarga ?? string.Empty,
                 CodigoSeguimientoEnvio = envio.CodigoSeguimiento,
@@ -173,7 +179,7 @@ public class ConfirmacionRepository : IConfirmacionRepository
 
     public async Task<bool> ConfirmarTransaccional(
         int idEnvio, int idCotizacion, int idTransportista, decimal precioFinal,
-        string codigoSeguimiento, DateTimeOffset fechaConfirmacion)
+        string codigoSeguimiento, DateTimeOffset fechaConfirmacion, bool precioEsEstimado = false)
     {
         await using var transaccion = await _db.Database.BeginTransactionAsync();
         try
@@ -187,13 +193,15 @@ public class ConfirmacionRepository : IConfirmacionRepository
 
             var cotizacion = await _db.Cotizaciones.FirstAsync(c => c.IdCotizacion == idCotizacion);
             cotizacion.Elegida = true;
+            cotizacion.PrecioEsEstimado = precioEsEstimado;
 
             _db.EnvioEstados.Add(new Models.EnvioEstado
             {
                 IdEnvio = idEnvio,
                 Estado = "CONFIRMADO",
                 FechaEstado = fechaConfirmacion,
-                Origen = "MEDIADOR"
+                Origen = "MEDIADOR",
+                Comentario = precioEsEstimado ? "Confirmado con precio estimado (sin B3)" : null
             });
 
             await _db.SaveChangesAsync();

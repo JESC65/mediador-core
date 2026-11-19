@@ -24,6 +24,9 @@ public class ConfirmarResponseDto
     public bool? PrecioCambio { get; set; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? PrecioEsEstimado { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public DateTimeOffset? FechaConfirmacion { get; set; }
 
     // PRECIO_CAMBIO

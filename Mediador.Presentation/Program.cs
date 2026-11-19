@@ -50,9 +50,12 @@ builder.Services.AddScoped<IEventoMediadorService, EventoMediadorService>();
 builder.Services.AddScoped<IEnvioConsultaService, EnvioConsultaService>();
 builder.Services.AddScoped<IConfirmacionRepository, ConfirmacionRepository>();
 builder.Services.AddScoped<IConfirmacionMediadorService, ConfirmacionMediadorService>();
+builder.Services.AddScoped<ICapacidadesTransportistaRepository, CapacidadesTransportistaRepository>();
+builder.Services.AddScoped<ICapacidadesTransportistaService, CapacidadesTransportistaService>();
 
 builder.Services.AddSingleton<INotificadorHuecoSecuencia, NotificadorHuecoSecuencia>();
 builder.Services.AddHostedService<RecuperacionEventosBackgroundService>();
+builder.Services.AddHostedService<SincronizacionCapacidadesBackgroundService>();
 
 var app = builder.Build();
 

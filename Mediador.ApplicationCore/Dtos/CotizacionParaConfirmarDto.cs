@@ -13,6 +13,9 @@ public class CotizacionParaConfirmarDto
     public string NombreTransportista { get; set; } = string.Empty;
     public string? UrlConector { get; set; }
 
+    // Capacidades C2 v2.0 §3: si no tiene fila en TransportistaCapacidad, se asume true
+    public bool PrecioEnLinea { get; set; } = true;
+
     // Código externo de la ruta (Ruta.CodigoRutaExterno) — lo que espera B3/B4, no el id interno.
     public string CodigoRutaExterno { get; set; } = string.Empty;
 

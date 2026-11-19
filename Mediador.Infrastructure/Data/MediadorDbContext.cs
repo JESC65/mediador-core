@@ -32,6 +32,7 @@ public class MediadorDbContext : DbContext
     public DbSet<EnvioPersona> EnvioPersonas => Set<EnvioPersona>();
     public DbSet<TransportistaSecuencia> TransportistaSecuencias => Set<TransportistaSecuencia>();
     public DbSet<SecuenciaHueco> SecuenciasHuecos => Set<SecuenciaHueco>();
+    public DbSet<TransportistaCapacidad> TransportistasCapacidades => Set<TransportistaCapacidad>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -135,6 +136,15 @@ public class MediadorDbContext : DbContext
             e.ToTable("EnvioPersona", "MED");
             e.HasKey(x => x.IdEnvioPersona);
             e.Property(x => x.IdEnvioPersona).ValueGeneratedOnAdd();
+        });
+        modelBuilder.Entity<TransportistaCapacidad>(e =>
+        {
+            e.ToTable("TransportistaCapacidad", "MED");
+            e.HasKey(x => x.IdTransportista);
+            e.Property(x => x.IdTransportista).ValueGeneratedNever();
+            e.Property(x => x.Familia).HasMaxLength(100);
+            e.Property(x => x.VersionConector).HasMaxLength(30);
+            e.Property(x => x.VersionContrato).HasMaxLength(10);
         });
     }
 }
