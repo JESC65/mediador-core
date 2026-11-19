@@ -29,6 +29,9 @@ Documento de seguimiento de tareas, pendientes técnicos y pruebas de aseguramie
 | 19 | Cerrado | La recuperación B7 y regla R6: parámetros t_recuperacion (5 min) y t_mensajes (7 días) validados al arranque; cliente ISimuladorTransportistaClient.RecuperarEventos (GET /v1/eventos?desde=N); worker RecuperacionEventosBackgroundService al arrancar, periódicamente y reactivo por canal ante detección de huecos de secuencia. Evidencia en docs/arreglos_sin_azure/b7_recuperacion.txt | Nada |
 | 20 | Cerrado | Reintentos de eventos en el simulador (Reglas R6 y R12): parámetros `r_esperas` (`1m, 5m, 15m, 1h`) y `r_limite` (`24h`) validados al arranque, entrega confirmada solo con HTTP 202, orden estricto por transportista en `bandeja_eventos.json` (sin romper B7), errores permanentes R8 marcados `NO_ENTREGADO` sin reintento con alerta `LogError`, y worker `ReintentoEventosBackgroundService`. Evidencia en `mediador-simulador-eett/docs/arreglos_sin_azure/r6_reintentos.txt`. | Nada |
 | 21 | Cerrado | Escenarios de prueba C2 §10 (`DUPLICADO`, `HUECO` y `X-Escenario` en B5): `POST /simular-evento` soporta `DUPLICADO` (envía 2 veces el mismo evento; Mediador procesa 1 sola vez) y `HUECO` (guarda en bandeja como `OMITIDO_HUECO` sin enviar para que Mediador recupere por B7); `POST /anular` (B5) soporta `X-Escenario` (`ERROR_500`, `NO_DISPONIBLE`, `SIN_RESPUESTA`, `LENTO`, `NORMAL`). Evidencia en `mediador-simulador-eett/docs/arreglos_sin_azure/c2_escenarios.txt`. | Nada |
+| 22 | Cerrado | Capacidades (B0, C2 v2.0 §3 y R8): `GET /v1/capacidades`, validación `HTTP 501 OPERACION_NO_SOPORTADA` en el simulador, tabla `MED.TransportistaCapacidad` (`05b_capacidades.sql`), sincronización al arranque y vía `POST /v1/transportistas/{id}/capacidades`, y confirmación sin B3 cuando `precioEnLinea` es falso dejando constancia de precio estimado. Evidencia en `docs/arreglos_sin_azure/b0_capacidades.txt`. | Nada |
+| 23 | Cerrado | Puntos de recepción (B6, C2 v2.0 §6): datos sintéticos en `transportista-N.json`, `GET /v1/puntos` con `HTTP 501` cuando `puntos` es falso, script idempotente `database/06_puntos.sql` (`MED.PuntoRecepcion` con versión y sin coordenadas/horarios), y carga vía `POST /v1/transportistas/{id}/puntos` y arranque. Evidencia en `docs/arreglos_sin_azure/b6_puntos.txt`. | Nada |
+| 24 | Cerrado | Salud del simulador (`GET /v1/salud`): responde estado `ACTIVO` y la última secuencia real de `bandeja_eventos.json`. Evidencia en `docs/arreglos_sin_azure/b6_puntos.txt`. | Nada |
 
 ---
 
@@ -369,4 +372,94 @@ Documento de seguimiento de tareas, pendientes técnicos y pruebas de aseguramie
     - `X-Escenario: SIN_RESPUESTA` -> Agotó el timeout de cliente (2.5s) con `The read operation timed out`.
     - `X-Escenario: NORMAL` -> Ejecutó el flujo normal respondiendo según el estado de la guía.
   - Evidencia completa en [docs/arreglos_sin_azure/c2_escenarios.txt](file:///d:/Proyectos/Jelaf/Courier/mediador-simulador-eett/docs/arreglos_sin_azure/c2_escenarios.txt).
+- **Veredicto QA**: **Aprobado / Cerrado**.
+
+---
+
+### Corrección: Bloque 2 · Capacidades de transportistas (Operación B0, C2 v2.0 §3 y Regla R8)
+
+- **Objetivo**: Implementar la declaración, validación y consumo de capacidades (B0) en ambos repositorios según el contrato C2 v2.0 §3 y la regla R8. En el Simulador: endpoint `GET /v1/capacidades` y validación `HTTP 501 OPERACION_NO_SOPORTADA` con formato común R8 (`error`, `detalle`, `campo: null`, `idCorrelacion: null/preservado`) ante operaciones no soportadas (`precioEnLinea`, `registroEnLinea`, `anulacion`). En el Mediador: persistencia en `MED.TransportistaCapacidad`, sincronización al arranque y vía `POST /v1/transportistas/{id}/capacidades`, y flujo de confirmación sin B3 cuando `precioEnLinea` es falso dejando constancia de precio estimado.
+- **Mecanismo Evaluado**:
+  - Simulador EETT:
+    - Archivos de configuración `transportista-7.json` (`precioEnLinea: false, registroEnLinea: true, anulacion: true, puntos: true, recepcionPorBulto: false`), `transportista-8.json` (`precioEnLinea: true, registroEnLinea: true, anulacion: false, puntos: true, recepcionPorBulto: false`) y `transportista-9.json` (`operaciones: true, recepcionPorBulto: true`). `transportista.json` preservado intacto.
+    - DTO [CapacidadesResponseDto.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-simulador-eett/SimuladorEETT.ApplicationCore/Dtos/CapacidadesResponseDto.cs) y controlador [CapacidadesController.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-simulador-eett/SimuladorEETT.Presentation/Controllers/CapacidadesController.cs) con ruta `GET /v1/capacidades`.
+    - DTO de error [ErrorResponseDto.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-simulador-eett/SimuladorEETT.ApplicationCore/Dtos/ErrorResponseDto.cs) según R8 (`campo: null`, `idCorrelacion: null/valor`) y validación previa a `X-Escenario` en `CotizacionController` (`precioEnLinea`), `RegistrarController` (`registroEnLinea`) y `AnularController` (`anulacion`) respondiendo `HTTP 501`.
+  - Mediador Core:
+    - Script DDL idempotente [database/05b_capacidades.sql](file:///d:/Proyectos/Jelaf/Courier/mediador-core/database/05b_capacidades.sql) para la tabla `MED.TransportistaCapacidad` y mapeo database-first en [MediadorDbContext.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Infrastructure/Data/MediadorDbContext.cs) con entidad [TransportistaCapacidad.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Infrastructure/Models/TransportistaCapacidad.cs).
+    - Cliente HTTP [ISimuladorTransportistaClient.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.ApplicationCore/Interfaces/ISimuladorTransportistaClient.cs) y [SimuladorTransportistaClient.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Infrastructure/Repositories/SimuladorTransportistaClient.cs) con método `ObtenerCapacidades(urlBaseTransportista)`.
+    - Repositorio y servicio [ICapacidadesTransportistaRepository.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.ApplicationCore/Interfaces/ICapacidadesTransportistaRepository.cs) / [CapacidadesTransportistaRepository.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Infrastructure/Repositories/CapacidadesTransportistaRepository.cs) y [ICapacidadesTransportistaService.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.ApplicationCore/Interfaces/ICapacidadesTransportistaService.cs) / [CapacidadesTransportistaService.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.ApplicationCore/Services/CapacidadesTransportistaService.cs).
+    - Endpoint [TransportistasController.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Presentation/Controllers/TransportistasController.cs) con ruta `POST /v1/transportistas/{id}/capacidades` (respondiendo HTTP 404 R8 ante transportistas inexistentes).
+    - BackgroundService [SincronizacionCapacidadesBackgroundService.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Presentation/Services/SincronizacionCapacidadesBackgroundService.cs) sincronizando al arranque con tolerancia ante transportistas caídas.
+    - Confirmación sin B3 en [ConfirmacionMediadorService.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.ApplicationCore/Services/ConfirmacionMediadorService.cs): cuando `precioEnLinea == false`, no invoca a B3, omite `IdCorrelacionPrecio` (persiste `NULL`), marca `PrecioEsEstimado = true`, deja constancia en `MED.EnvioEstado.Comentario = "Confirmado con precio estimado (sin B3)"` y continúa directo a B4.
+  - Script automatizado de pruebas `test_b0_capacidades.py`.
+- **Entorno de Prueba**:
+  - Simulador T7 en `https://localhost:7201`, Simulador T8 en `https://localhost:7202`, Mediador en `https://localhost:7250`, SQL Server `MediadorDev`.
+- **Resultados Verificados**:
+  - **Caso 1 (B0 y sincronización al arranque)**:
+    - `GET https://localhost:7201/v1/capacidades` (T7) respondió `HTTP 200 OK` con `precioEnLinea: false, registroEnLinea: true, anulacion: true, puntos: true`.
+    - `GET https://localhost:7202/v1/capacidades` (T8) respondió `HTTP 200 OK` con `precioEnLinea: true, registroEnLinea: true, anulacion: false, puntos: true`.
+    - Al levantar Mediador, `MED.TransportistaCapacidad` se pobló automáticamente con ambas transportistas.
+    - `POST https://localhost:7250/v1/transportistas/7/capacidades` respondió `HTTP 200 OK` y `/999/capacidades` respondió `HTTP 404 Not Found` con formato R8.
+  - **Caso 2 (Confirmación con T7 - precioEnLinea: false)**:
+    - `POST /cotizar` cotizó T7 con opción `OPT-9CCFDA` (precio referencial 18.0).
+    - `POST /confirmar` respondió `HTTP 200 OK` con `precioEsEstimado: true`, `precioFinal: 18.0`.
+    - En `MED.Envio`: `IdCorrelacionPrecio` quedó en `NULL`, `IdCorrelacionRegistro` poblado (`e5967185-9ad0-4c43-bf06-da2d056e32b8`), `MED.EnvioEstado.Comentario` registró `"Confirmado con precio estimado (sin B3)"` y `MED.EnvioOpcion.PrecioEsEstimado = 1`.
+  - **Caso 3 (Confirmación con T8 - precioEnLinea: true)**:
+    - `POST /cotizar` y `POST /confirmar` con T8: respondió `HTTP 200 OK` con `precioEsEstimado: false`, pasó por B3 y `IdCorrelacionPrecio` quedó debidamente poblado (`24e205ce-e5f1-41c7-b18e-22a44b12802f`).
+  - **Caso 4 (Validación 501 en el Simulador)**:
+    - `POST https://localhost:7202/anular` (T8, `anulacion: false`) respondió `HTTP 501 Not Implemented` con cuerpo R8 obligatorio (`OPERACION_NO_SOPORTADA`, detalle `"La transportista no soporta la operación solicitada."`, `campo: null`, `idCorrelacion: null`).
+    - `POST https://localhost:7201/cotizar` (T7, `precioEnLinea: false`) respondió `HTTP 501 Not Implemented` con cuerpo R8 preservando el `idCorrelacion`.
+  - Evidencia completa en [docs/arreglos_sin_azure/b0_capacidades.txt](file:///d:/Proyectos/Jelaf/Courier/mediador-core/docs/arreglos_sin_azure/b0_capacidades.txt).
+- **Veredicto QA**: **Aprobado / Cerrado**.
+
+---
+
+### Corrección: Bloque 3 · Puntos de recepción (Operación B6, C2 v2.0 §6)
+
+- **Objetivo**: Implementar la consulta de puntos de recepción (B6) en el Simulador EETT y la persistencia y sincronización de puntos en el Mediador (`MED.PuntoRecepcion`) según el contrato C2 v2.0 §6 y las reglas comunes (R1, R8, R11).
+- **Mecanismo Evaluado**:
+  - Simulador EETT:
+    - Arreglos de puntos sintéticos configurados en `transportista-7.json` y `transportista-8.json` (`codigo`, `nombre`, `direccion`, `ubigeo`) con `operaciones.puntos: true`. En `transportista-9.json` se configuró `operaciones.puntos: false` y `puntos: []`. Archivo `transportista.json` preservado intacto.
+    - DTOs [PuntoRecepcionDto.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-simulador-eett/SimuladorEETT.ApplicationCore/Dtos/PuntoRecepcionDto.cs) y [PuntosResponseDto.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-simulador-eett/SimuladorEETT.ApplicationCore/Dtos/PuntosResponseDto.cs).
+    - Controlador [PuntosController.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-simulador-eett/SimuladorEETT.Presentation/Controllers/PuntosController.cs) con ruta `GET /v1/puntos`. Valida capacidad: si `puntos == false`, responde `HTTP 501 Not Implemented` con cuerpo R8 obligatorio (`OPERACION_NO_SOPORTADA`, detalle `"La transportista no soporta la consulta de puntos de recepción."`, `campo: null`, `idCorrelacion: null`); si es `true`, responde `HTTP 200 OK` con `{ idTransportista, puntos: [...] }`.
+  - Mediador Core:
+    - Script DDL idempotente [database/06_puntos.sql](file:///d:/Proyectos/Jelaf/Courier/mediador-core/database/06_puntos.sql) creando `MED.PuntoRecepcion` (`IdPunto IDENTITY PK`, `IdTransportista`, `CodigoExterno`, `Nombre`, `Direccion`, `Ubigeo`, `Latitud`, `Longitud`, `Horario`, `TiempoServicioMinutos`, `Version DEFAULT 1`, `Activo DEFAULT 1`, `FechaActualizacion`, `UQ_PuntoRecepcion (IdTransportista, CodigoExterno)`).
+    - Entidad [PuntoRecepcion.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Infrastructure/Models/PuntoRecepcion.cs) y mapeo database-first en [MediadorDbContext.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Infrastructure/Data/MediadorDbContext.cs).
+    - Cliente HTTP [ISimuladorTransportistaClient.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.ApplicationCore/Interfaces/ISimuladorTransportistaClient.cs) y [SimuladorTransportistaClient.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Infrastructure/Repositories/SimuladorTransportistaClient.cs) implementando `ObtenerPuntos(urlBase)` con timeout `t_precio_eett`.
+    - Repositorio [IPuntosRecepcionRepository.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.ApplicationCore/Interfaces/IPuntosRecepcionRepository.cs) / [PuntosRecepcionRepository.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Infrastructure/Repositories/PuntosRecepcionRepository.cs) realizando upsert: al insertar fija `Version = 1` y deja `Latitud`, `Longitud`, `Horario` en `NULL`; al actualizar incrementa `Version = Version + 1` si cambiaron `Nombre`, `Direccion` o `Ubigeo`.
+    - Servicio [IPuntosRecepcionService.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.ApplicationCore/Interfaces/IPuntosRecepcionService.cs) / [PuntosRecepcionService.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.ApplicationCore/Services/PuntosRecepcionService.cs): verifica si la transportista declara `Puntos == true`; si es falso, no llama a B6 y registra log.
+    - Sincronización automática encadenada en [CapacidadesTransportistaService.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.ApplicationCore/Services/CapacidadesTransportistaService.cs) al arranque y vía endpoint [TransportistasController.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-core/Mediador.Presentation/Controllers/TransportistasController.cs) con `POST /v1/transportistas/{id}/puntos` (con HTTP 404 R8 ante ID inexistente).
+  - Script automatizado de pruebas `test_b6_puntos.py`.
+- **Entorno de Prueba**:
+  - Simulador T7 (`puntos: true`) en `https://localhost:7201`, Simulador T9 (`puntos: false`) en `https://localhost:7203`, Mediador en `https://localhost:7250`, SQL Server `MediadorDev`.
+- **Resultados Verificados**:
+  - **Idempotencia SQL**: `database/06_puntos.sql` ejecutado 2 veces consecutivas en `MediadorDev` sin errores.
+  - **Caso 1 (B6 exitoso y carga en BD para T7)**:
+    - `GET https://localhost:7201/v1/puntos` respondió `HTTP 200 OK` con 2 puntos sintéticos (`PTO-01`: "Terminal de ejemplo Norte", "Av. Ejemplo 100", "150101"; `PTO-02`: "Agencia de ejemplo Centro", "Jr. Ejemplo 200", "130101").
+    - En `MED.PuntoRecepcion` se insertaron exactamente 2 filas con `Version = 1` y `Latitud`, `Longitud`, `Horario` en `NULL`.
+    - `POST /v1/transportistas/7/puntos` respondió `HTTP 200 OK` con `puntosSincronizados: 2`.
+    - `POST /v1/transportistas/999/puntos` respondió `HTTP 404 Not Found` con formato R8 (`RECURSO_NO_ENCONTRADO`).
+  - **Caso 2 (B6 no soportado para T9)**:
+    - `GET https://localhost:7203/v1/puntos` respondió `HTTP 501 Not Implemented` con cuerpo R8 obligatorio (`OPERACION_NO_SOPORTADA`, detalle `"La transportista no soporta la consulta de puntos de recepción."`, `campo: null`, `idCorrelacion: null`).
+    - En `MED.PuntoRecepcion` se verificó que la transportista 9 tiene 0 filas.
+  - Evidencia completa en [docs/arreglos_sin_azure/b6_puntos.txt](file:///d:/Proyectos/Jelaf/Courier/mediador-core/docs/arreglos_sin_azure/b6_puntos.txt).
+- **Veredicto QA**: **Aprobado / Cerrado**.
+
+---
+
+### Corrección: Bloque 3 · Salud del simulador (GET /v1/salud)
+
+- **Objetivo**: Implementar en el Simulador EETT el endpoint de diagnóstico y salud `GET /v1/salud` según C2 v2.0 §6, devolviendo el estado operativo del simulador (`ACTIVO`), el identificador de la transportista, la marca de tiempo actual y la última secuencia real de eventos registrada en su bandeja persistente (`bandeja_eventos.json`).
+- **Mecanismo Evaluado**:
+  - DTO [SaludResponseDto.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-simulador-eett/SimuladorEETT.ApplicationCore/Dtos/SaludResponseDto.cs) (`estado`, `idTransportista`, `ultimaSecuencia`, `fechaHora`).
+  - Método `ObtenerUltimaSecuencia(int idTransportista)` en [IBandejaEventosRepository.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-simulador-eett/SimuladorEETT.ApplicationCore/Interfaces/IBandejaEventosRepository.cs) y [BandejaEventosRepository.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-simulador-eett/SimuladorEETT.Infrastructure/Repositories/BandejaEventosRepository.cs), consultando la secuencia máxima registrada en memoria/disco para la transportista configurada (retorna 0 si no hay eventos registrados).
+  - Controlador [SaludController.cs](file:///d:/Proyectos/Jelaf/Courier/mediador-simulador-eett/SimuladorEETT.Presentation/Controllers/SaludController.cs) con ruta `[Route("v1/salud")]`.
+  - Script automatizado de pruebas `test_b6_puntos.py` (Caso 3).
+- **Entorno de Prueba**:
+  - Simulador T7 levantado en `https://localhost:7201` con 8 eventos existentes en su bandeja.
+  - Simulador T9 levantado en `https://localhost:7203` con bandeja vacía.
+- **Resultados Verificados**:
+  - `GET https://localhost:7201/v1/salud` (T7): Respondió `HTTP 200 OK` con `estado: "ACTIVO"`, `idTransportista: 7`, `ultimaSecuencia: 8` (secuencia real reflejada de la bandeja) y `fechaHora: "2026-11-19T17:24:13-05:00"`.
+  - `GET https://localhost:7203/v1/salud` (T9): Respondió `HTTP 200 OK` con `estado: "ACTIVO"`, `idTransportista: 9`, `ultimaSecuencia: 0` y `fechaHora: "2026-11-19T17:24:13-05:00"`.
+  - Evidencia completa en [docs/arreglos_sin_azure/b6_puntos.txt](file:///d:/Proyectos/Jelaf/Courier/mediador-core/docs/arreglos_sin_azure/b6_puntos.txt).
 - **Veredicto QA**: **Aprobado / Cerrado**.
