@@ -8,15 +8,18 @@ public class CapacidadesTransportistaService : ICapacidadesTransportistaService
 {
     private readonly ICapacidadesTransportistaRepository _repository;
     private readonly ISimuladorTransportistaClient _simuladorClient;
+    private readonly IPuntosRecepcionService _puntosService;
     private readonly ILogger<CapacidadesTransportistaService> _logger;
 
     public CapacidadesTransportistaService(
         ICapacidadesTransportistaRepository repository,
         ISimuladorTransportistaClient simuladorClient,
+        IPuntosRecepcionService puntosService,
         ILogger<CapacidadesTransportistaService> logger)
     {
         _repository = repository;
         _simuladorClient = simuladorClient;
+        _puntosService = puntosService;
         _logger = logger;
     }
 
@@ -46,6 +49,15 @@ public class CapacidadesTransportistaService : ICapacidadesTransportistaService
         await _repository.GuardarCapacidadesAsync(idTransportista, resultado.Respuesta);
         _logger.LogInformation("Capacidades sincronizadas para transportista {IdTransportista} ({RazonSocial}).",
             idTransportista, transportista.RazonSocial);
+
+        try
+        {
+            await _puntosService.SincronizarPuntosTransportistaAsync(idTransportista);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Fallo al sincronizar puntos para transportista {IdTransportista} tras sincronizar capacidades.", idTransportista);
+        }
 
         return ResultadoSincronizacionCapacidadesDto.Ok(resultado.Respuesta);
     }

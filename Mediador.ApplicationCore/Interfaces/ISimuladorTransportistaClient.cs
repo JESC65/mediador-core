@@ -27,4 +27,8 @@ public interface ISimuladorTransportistaClient
     /// <summary>B0: GET {urlBaseTransportista}/v1/capacidades — capacidades de la transportista (C2 v2.0 §3).</summary>
     Task<ResultadoLlamadaSimuladorDto<CapacidadesResponseDto>> ObtenerCapacidades(
         string urlBaseTransportista);
+
+    /// <summary>B6: GET {urlBaseTransportista}/v1/puntos — puntos de recepción (C2 v2.0 §6).</summary>
+    Task<ResultadoLlamadaSimuladorDto<PuntosTransportistaResponseDto>> ObtenerPuntos(
+        string urlBaseTransportista);
 }

@@ -33,6 +33,7 @@ public class MediadorDbContext : DbContext
     public DbSet<TransportistaSecuencia> TransportistaSecuencias => Set<TransportistaSecuencia>();
     public DbSet<SecuenciaHueco> SecuenciasHuecos => Set<SecuenciaHueco>();
     public DbSet<TransportistaCapacidad> TransportistasCapacidades => Set<TransportistaCapacidad>();
+    public DbSet<PuntoRecepcion> PuntosRecepcion => Set<PuntoRecepcion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -145,6 +146,19 @@ public class MediadorDbContext : DbContext
             e.Property(x => x.Familia).HasMaxLength(100);
             e.Property(x => x.VersionConector).HasMaxLength(30);
             e.Property(x => x.VersionContrato).HasMaxLength(10);
+        });
+        modelBuilder.Entity<PuntoRecepcion>(e =>
+        {
+            e.ToTable("PuntoRecepcion", "MED");
+            e.HasKey(x => x.IdPunto);
+            e.Property(x => x.IdPunto).ValueGeneratedOnAdd();
+            e.Property(x => x.CodigoExterno).HasMaxLength(50);
+            e.Property(x => x.Nombre).HasMaxLength(200);
+            e.Property(x => x.Direccion).HasMaxLength(300);
+            e.Property(x => x.Ubigeo).HasMaxLength(6);
+            e.Property(x => x.Latitud).HasPrecision(9, 6);
+            e.Property(x => x.Longitud).HasPrecision(9, 6);
+            e.Property(x => x.Horario).HasMaxLength(200);
         });
     }
 }

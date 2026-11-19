@@ -116,6 +116,44 @@ public class SimuladorTransportistaClient : ISimuladorTransportistaClient
         }
     }
 
+    public async Task<ResultadoLlamadaSimuladorDto<PuntosTransportistaResponseDto>> ObtenerPuntos(
+        string urlBaseTransportista)
+    {
+        var url = $"{urlBaseTransportista.TrimEnd('/')}/v1/puntos";
+        var cliente = _httpClientFactory.CreateClient();
+        using var cts = new CancellationTokenSource(_parametros.t_precio_eett);
+
+        try
+        {
+            using var response = await cliente.GetAsync(url, cts.Token);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("El simulador respondió {StatusCode} en {Url}", (int)response.StatusCode, url);
+                return ResultadoLlamadaSimuladorDto<PuntosTransportistaResponseDto>.Falla($"ERROR_HTTP_{(int)response.StatusCode}");
+            }
+
+            var opciones = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);
+            var dto = await response.Content.ReadFromJsonAsync<PuntosTransportistaResponseDto>(opciones, cts.Token);
+            if (dto is null)
+            {
+                _logger.LogWarning("El simulador respondió 2xx pero sin cuerpo interpretable en {Url}", url);
+                return ResultadoLlamadaSimuladorDto<PuntosTransportistaResponseDto>.Falla("RESPUESTA_VACIA");
+            }
+
+            return ResultadoLlamadaSimuladorDto<PuntosTransportistaResponseDto>.Ok(dto);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning("Se agotó la espera llamando a {Url}", url);
+            return ResultadoLlamadaSimuladorDto<PuntosTransportistaResponseDto>.Falla("TIMEOUT");
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "No se pudo conectar a {Url}", url);
+            return ResultadoLlamadaSimuladorDto<PuntosTransportistaResponseDto>.Falla("SIN_CONEXION");
+        }
+    }
+
     private async Task<ResultadoLlamadaSimuladorDto<TRespuesta>> Llamar<TPeticion, TRespuesta>(
         string urlBaseTransportista, string ruta, TPeticion request, TimeSpan esperaMaxima)
     {

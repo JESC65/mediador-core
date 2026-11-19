@@ -52,6 +52,8 @@ builder.Services.AddScoped<IConfirmacionRepository, ConfirmacionRepository>();
 builder.Services.AddScoped<IConfirmacionMediadorService, ConfirmacionMediadorService>();
 builder.Services.AddScoped<ICapacidadesTransportistaRepository, CapacidadesTransportistaRepository>();
 builder.Services.AddScoped<ICapacidadesTransportistaService, CapacidadesTransportistaService>();
+builder.Services.AddScoped<IPuntosRecepcionRepository, PuntosRecepcionRepository>();
+builder.Services.AddScoped<IPuntosRecepcionService, PuntosRecepcionService>();
 
 builder.Services.AddSingleton<INotificadorHuecoSecuencia, NotificadorHuecoSecuencia>();
 builder.Services.AddHostedService<RecuperacionEventosBackgroundService>();
