@@ -1,0 +1,205 @@
+--------------------------------------------------------------------------------
+1. VERSIONES INSTALADAS (BLOQUE 1)
+--------------------------------------------------------------------------------
+--- .NET Runtimes (dotnet --list-runtimes) ---
+Microsoft.AspNetCore.App 8.0.30 [C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App]
+Microsoft.AspNetCore.App 10.0.11 [C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App]
+Microsoft.AspNetCore.App 10.0.15 [C:\Program Files\dotnet\shared\Microsoft.AspNetCore.App]
+Microsoft.NETCore.App 8.0.30 [C:\Program Files\dotnet\shared\Microsoft.NETCore.App]
+Microsoft.NETCore.App 10.0.11 [C:\Program Files\dotnet\shared\Microsoft.NETCore.App]
+Microsoft.NETCore.App 10.0.15 [C:\Program Files\dotnet\shared\Microsoft.NETCore.App]
+Microsoft.WindowsDesktop.App 8.0.30 [C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App]
+Microsoft.WindowsDesktop.App 10.0.11 [C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App]
+
+--- SQL Server (SELECT @@VERSION) ---
+Microsoft SQL Server 2022 (RTM) - 16.0.1000.6 (X64)
+Oct 8 2022 05:58:25
+Developer Edition (64-bit) on Windows Server 2022 Datacenter 10.0 <X64> (Build 20348)
+
+---------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+2. BASE DE DATOS MEDIADORDEV Y USUARIO DE MINIMOS PERMISOS (BLOQUE 2)
+--------------------------------------------------------------------------------
+Scripts ejecutados en orden:
+  01_esquema.sql, 02_datos_prueba.sql, 03_correlativo.sql, 04_idcorrelacion.sql,
+  05_evento_sobre.sql, 05b_capacidades.sql, 06_puntos.sql
+
+Usuario SQL creado: mediador_app (roles: db_datareader, db_datawriter, GRANT EXECUTE ON SCHEMA::MED)
+Variable de entorno de sistema: ConnectionStrings__MediadorDev configurada (sin credenciales en archivos).
+
+--- Verificación de tablas en esquema MED con usuario mediador_app (18 tablas) ---
+MED.Convenio
+MED.Correlativo
+MED.Cotizacion
+MED.Courier
+MED.Envio
+MED.EnvioDocumento
+MED.EnvioEstado
+MED.EnvioPaquete
+MED.EnvioPersona
+MED.EventoRecibido
+MED.PrecioVenta
+MED.PuntoRecepcion
+MED.Ruta
+MED.SecuenciaHueco
+MED.TarifaProveedor
+MED.Transportista
+MED.TransportistaCapacidad
+MED.TransportistaSecuencia
+
+---------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+3. SERVICIOS DE WINDOWS REGISTRADOS CON NSSM (BLOQUE 3)
+--------------------------------------------------------------------------------
+SimuladorEETT -> C:\publicado\simulador (http://localhost:5201, transportista-7.json)
+MediadorCore  -> C:\publicado\mediador  (http://localhost:5250)
+
+Get-Service SimuladorEETT, MediadorCore | Format-Table Name, Status, StartType
+
+Name           Status StartType
+----           ------ ---------
+MediadorCore  Running Automatic
+SimuladorEETT Running Automatic
+
+--------------------------------------------------------------------------------
+4. PRUEBA DE PUNTA A PUNTA DESDE LA MAQUINA (BLOQUE 3)
+--------------------------------------------------------------------------------
+--- Paso 4.1: Cotizar (POST http://localhost:5250/cotizar) ---
+{
+  "idCorrelacion": "COU-NUBE-001",
+  "estado": "COTIZADO",
+  "pesoTotalKg": 4.5,
+  "cantidadPaquetes": 1,
+  "opciones": [
+    {
+      "idOpcion": "OPT-AED9D8",
+      "idTransportista": 8,
+      "nombreTransportista": "Transportes Rápido Sur",
+      "precioReferencial": 15.30,
+      "precioEsEstimado": true,
+      "frecuenciaSalidas": "Diaria",
+      "aceptaFragil": false,
+      "vigenteHasta": "2026-11-20T16:26:10-05:00"
+    },
+    {
+      "idOpcion": "OPT-107348",
+      "idTransportista": 7,
+      "nombreTransportista": "Expreso Andino",
+      "precioReferencial": 18.00,
+      "precioEsEstimado": true,
+      "frecuenciaSalidas": "Diaria",
+      "aceptaFragil": false,
+      "vigenteHasta": "2026-11-20T16:26:10-05:00"
+    },
+    {
+      "idOpcion": "OPT-B73BA0",
+      "idTransportista": 9,
+      "nombreTransportista": "Carga Segura del Norte",
+      "precioReferencial": 22.50,
+      "precioEsEstimado": true,
+      "frecuenciaSalidas": "Diaria",
+      "aceptaFragil": true,
+      "vigenteHasta": "2026-11-20T16:26:10-05:00"
+    }
+  ]
+}
+
+--- Paso 4.2: Confirmar con Transportista 7 (POST http://localhost:5250/confirmar) ---
+{
+  "idCorrelacion": "COU-NUBE-001",
+  "estado": "CONFIRMADO",
+  "codigoSeguimiento": "MED-2026-000001",
+  "idTransportista": 7,
+  "nombreTransportista": "Expreso Andino",
+  "precioFinal": 18.00,
+  "precioCambio": false,
+  "precioEsEstimado": true,
+  "fechaConfirmacion": "2026-11-20T14:26:19-05:00"
+}
+
+--- Paso 4.3: Emitir evento BUS_ASIGNADO (POST http://localhost:5201/simular-evento) ---
+{
+  "enviado": true,
+  "mensaje": {
+    "idEvento": "7c02653d-ef0e-4bd5-ae2f-74d35929c264",
+    "tipoEvento": "BUS_ASIGNADO",
+    "versionContrato": "2.0",
+    "secuencia": 9,
+    "entidad": {
+      "tipo": "ENVIO",
+      "id": "MED-2026-000001"
+    },
+    "versionEntidad": 1,
+    "fechaEvento": "2026-11-20T14:26:29-05:00",
+    "emisor": "CONECTOR",
+    "idTransportista": 7,
+    "datos": {
+      "placaBus": "NUB-123"
+    }
+  }
+}
+
+--- Paso 4.4: Consultar estado (GET http://localhost:5250/envio/MED-2026-000001) ---
+{
+  "codigoSeguimiento": "MED-2026-000001",
+  "estadoActual": "EN_VIAJE",
+  "idTransportista": 7,
+  "nombreTransportista": "Expreso Andino",
+  "precioAcordado": 18.00,
+  "busAsignado": "NUB-123",
+  "historial": [
+    {
+      "estado": "COTIZADO",
+      "fecha": "2026-11-20T14:26:10-05:00",
+      "origen": "MEDIADOR",
+      "comentario": null
+    },
+    {
+      "estado": "CONFIRMADO",
+      "fecha": "2026-11-20T14:26:19-05:00",
+      "origen": "MEDIADOR",
+      "comentario": "Confirmado con precio estimado (sin B3)"
+    },
+    {
+      "estado": "EN_VIAJE",
+      "fecha": "2026-11-20T14:26:29-05:00",
+      "origen": "EETT",
+      "comentario": "Bus NUB-123"
+    }
+  ]
+}
+
+--------------------------------------------------------------------------------
+5. VERIFICACION TRAS REINICIO DE LA MAQUINA VIRTUAL
+--------------------------------------------------------------------------------
+Status   Name               DisplayName
+------   ----               -----------
+Running  MSSQLSERVER        SQL Server (MSSQLSERVER)
+{
+    "codigoSeguimiento":  "MED-2026-000001",
+    "estadoActual":  "EN_VIAJE",
+    "idTransportista":  7,
+    "nombreTransportista":  "Expreso Andino",
+    "precioAcordado":  18.00,
+    "busAsignado":  "NUB-123",
+    "historial":  [
+                      {
+                          "estado":  "COTIZADO",
+                          "fecha":  "2026-11-20T14:26:10-05:00",
+                          "origen":  "MEDIADOR",
+                          "comentario":  null
+                      },
+                      {
+                          "estado":  "CONFIRMADO",
+                          "fecha":  "2026-11-20T14:26:19-05:00",
+                          "origen":  "MEDIADOR",
+                          "comentario":  "Confirmado con precio estimado (sin B3)"
+                      },
+                      {
+                          "estado":  "EN_VIAJE",
+                          "fecha":  "2026-11-20T14:26:29-05:00",
+                          "origen":  "EETT",
+                          "comentario":  "Bus NUB-123"
+                      }
+                  ]
+}

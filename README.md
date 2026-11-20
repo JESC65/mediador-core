@@ -149,7 +149,13 @@ curl -k -X POST https://localhost:7250/cotizar \
 ```
 
 ### Paso a Azure
-Pendiente del acceso.
+### Despliegue en Google Cloud (Etapa 1)
+1. **Entorno base:** Windows Server 2022 con ASP.NET Core 10.0 Hosting Bundle y SQL Server 2022 Developer Edition en Modo Mixto (puerto 1433 cerrado hacia internet).
+2. **Base de datos:** Se creó `MediadorDev` ejecutando en orden `01_esquema.sql`, `02_datos_prueba.sql`, `03_correlativo.sql`, `04_idcorrelacion.sql`, `05_evento_sobre.sql`, `05b_capacidades.sql` y `06_puntos.sql`, junto con el login dedicado `mediador_app` (`db_datareader`, `db_datawriter` y `GRANT EXECUTE ON SCHEMA::MED`).
+3. **Empaquetado:** Se generaron los binarios en Release desde PC con `.\scripts\publicar.ps1` y se copiaron a `C:\publicado\mediador` y `C:\publicado\simulador` en la VM.
+4. **Configuración segura:** Se definió la variable de entorno de sistema (`Machine`) `ConnectionStrings__MediadorDev` apuntando a `MediadorDev` con el usuario `mediador_app` (sin credenciales en archivos).
+5. **Servicios de Windows (NSSM):** Se registraron `SimuladorEETT` (`http://localhost:5201`, `transportista-7.json`) y `MediadorCore` (`http://localhost:5250`, con dependencia de `MSSQLSERVER`) con arranque automático (`SERVICE_AUTO_START`), escuchando solo dentro de la máquina.
+6. **Verificación:** Prueba de punta a punta (cotizar, confirmar, evento `BUS_ASIGNADO` y consulta de estado) y reinicio completo de la VM confirmando que ambos servicios vuelven solos. Evidencia en `docs/nube/01_despliegue.txt`.
 
 ## Instalación en la máquina de Martín
 
