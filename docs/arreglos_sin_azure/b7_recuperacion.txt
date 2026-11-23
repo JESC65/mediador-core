@@ -1,6 +1,6 @@
 ================================================================================
 EVIDENCIA DE PRUEBA: BLOQUE 3 - RECUPERACIÓN AUTOMÁTICA DE EVENTOS (B7 Y R6)
-Fecha y hora: 2026-11-17 17:19:25
+Fecha y hora: 2026-11-23 14:13:15
 Simulador: http://localhost:5201
 Mediador:  http://localhost:5250
 ================================================================================
@@ -27,9 +27,9 @@ Iniciando Mediador...
 Verificación en BD: Eventos recuperados en MED.EventoRecibido:
 IdEventoRecibido IdEvento                                                                         TipoEvento                               Secuencia   RequiereMensajeRechazado Procesado
 ---------------- -------------------------------------------------------------------------------- ---------------------------------------- ----------- ------------------------ ---------
-            1022 9100c2dd-bce0-4443-9314-bcc4b419cd6f                                             RECEPCION_CONFIRMADA                               1                        0         1
-            1023 9ad2200e-69f4-44f4-b26c-6063e3b867f0                                             BUS_ASIGNADO                                       2                        0         1
-            1024 bea98431-4c9b-48ca-b4e2-182b0bec12fc                                             EN_VIAJE                                           3                        0         1
+            2024 01a209d3-b972-7021-9564-fad4d0f308cb                                             RECEPCION_CONFIRMADA                               1                        0         1
+            2025 01a209d3-ca7a-715c-8e46-d74529ff615c                                             BUS_ASIGNADO                                       2                        0         1
+            2026 01a209d3-ca85-7f8e-8774-1f0d270cb761                                             EN_VIAJE                                           3                        0         1
 
 (3 rows affected)
 Verificación en BD: Secuencia contigua tras arranque:
@@ -47,13 +47,13 @@ Evento 4 generado en simulador: Secuencia=4
 Evento 5 generado en simulador: Secuencia=5
 
 Simulando pérdida en tránsito: el evento 4 no llega al Mediador, pero sí le llega directamente el evento 5...
-POST evento 5 al Mediador: HTTP 202, Respuesta: {'idEvento': 'a6d210a5-d698-4100-b4e9-b849849c1b1f', 'recibido': True}
+POST evento 5 al Mediador: HTTP 202, Respuesta: {'idEvento': '01a209d3-f0e5-746e-9dc8-bea212873d61', 'recibido': True}
 Esperando que el canal despierte al worker y recupere automáticamente el evento 4 faltante...
 
 Verificación en BD: Estado de huecos en MED.SecuenciaHueco:
 IdHueco     IdTransportista SecuenciaEsperada SecuenciaRecibida Resuelto
 ----------- --------------- ----------------- ----------------- --------
-          5               7                 4                 5        1
+       1009               7                 4                 5        1
 
 (1 rows affected)
 Verificación en BD: Secuencia contigua tras completar el hueco:
@@ -65,11 +65,11 @@ IdTransportista UltimaSecuenciaContigua
 Verificación en BD: Todos los eventos en MED.EventoRecibido:
 IdEventoRecibido IdEvento                                                                         TipoEvento                               Secuencia   Procesado
 ---------------- -------------------------------------------------------------------------------- ---------------------------------------- ----------- ---------
-            1022 9100c2dd-bce0-4443-9314-bcc4b419cd6f                                             RECEPCION_CONFIRMADA                               1         1
-            1023 9ad2200e-69f4-44f4-b26c-6063e3b867f0                                             BUS_ASIGNADO                                       2         1
-            1024 bea98431-4c9b-48ca-b4e2-182b0bec12fc                                             EN_VIAJE                                           3         1
-            1026 50b994d5-f57d-4642-9c79-ec596ccb94ef                                             ARRIBADO                                           4         1
-            1025 a6d210a5-d698-4100-b4e9-b849849c1b1f                                             ENTREGADO                                          5         0
+            2024 01a209d3-b972-7021-9564-fad4d0f308cb                                             RECEPCION_CONFIRMADA                               1         1
+            2025 01a209d3-ca7a-715c-8e46-d74529ff615c                                             BUS_ASIGNADO                                       2         1
+            2026 01a209d3-ca85-7f8e-8774-1f0d270cb761                                             EN_VIAJE                                           3         1
+            2028 01a209d3-f0db-7b7b-9c1f-11efb6031d68                                             ARRIBADO                                           4         1
+            2027 01a209d3-f0e5-746e-9dc8-bea212873d61                                             ENTREGADO                                          5         0
 
 (5 rows affected)
 

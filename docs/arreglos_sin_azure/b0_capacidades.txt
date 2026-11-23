@@ -1,6 +1,6 @@
 ================================================================================
 EVIDENCIA DE PRUEBA: BLOQUE 2 - CAPACIDADES (B0) SEGÚN C2 v2.0 §3 Y REGLA R8
-Fecha y hora: 2026-11-19 17:05:00
+Fecha y hora: 2026-11-23 14:13:48
 Simulador T7 (precioEnLinea=false): https://localhost:7201
 Simulador T8 (anulacion=false):      https://localhost:7202
 Mediador:                           https://localhost:7250
@@ -12,8 +12,8 @@ Mediador:                           https://localhost:7250
 [PASO 1] Iniciando Simulador Instancia 1 (T7, puerto 7201)...
 [PASO 2] Iniciando Simulador Instancia 2 (T8, puerto 7202)...
 [WAIT] Esperando que los simuladores estén arriba...
-  [OK] Simulador T8 respondiendo en https://localhost:7202
   [OK] Simulador T7 respondiendo en https://localhost:7201
+  [OK] Simulador T8 respondiendo en https://localhost:7202
 
 [PASO 3] Iniciando Mediador (puerto 7250)...
 [WAIT] Esperando que Mediador esté arriba y sincronice capacidades al arranque...
@@ -76,8 +76,8 @@ Mediador:                           https://localhost:7250
 [1.3] Verificación de sincronización al arranque en MED.TransportistaCapacidad:
 IdTransportista Familia                                                                                              VersionConector                VersionContrato PrecioEnLinea RegistroEnLinea Anulacion Puntos RecepcionPorBulto FechaActualizacion                           
 --------------- ---------------------------------------------------------------------------------------------------- ------------------------------ --------------- ------------- --------------- --------- ------ ----------------- ---------------------------------------------
-              7 Expreso Andino                                                                                       1.0.0                          2.0                         0               1         1      1                 0            2026-11-19 17:05:20.0000000 -05:00
-              8 Transportes Rápido Sur                                                                               1.0.0                          2.0                         1               1         0      1                 0            2026-11-19 17:05:21.0000000 -05:00
+              7 Expreso Andino                                                                                       1.0.0                          2.0                         0               1         1      1                 0            2026-11-23 14:14:03.0000000 -05:00
+              8 Transportes Rápido Sur                                                                               1.0.0                          2.0                         1               1         0      1                 0            2026-11-23 14:14:04.0000000 -05:00
 
 (2 rows affected)
 
@@ -91,37 +91,37 @@ IdTransportista Familia                                                         
 --------------------------------------------------------------------------------
 
 [2.1] POST /cotizar (T7): HTTP 200
-  Opción obtenida para T7: OPT-9CCFDA (Precio referencial: 18.0)
+  Opción obtenida para T7: OPT-04A624 (Precio referencial: 18.0)
 
 [2.2] POST /confirmar (T7, precioEnLinea=false):
   HTTP Status: 200
   Respuesta: {
-  "idCorrelacion": "COU-QA-B0-T7-CONF-1795125923",
+  "idCorrelacion": "COU-QA-B0-T7-CONF-1795461245",
   "estado": "CONFIRMADO",
-  "codigoSeguimiento": "MED-2026-000035",
+  "codigoSeguimiento": "MED-2026-000059",
   "idTransportista": 7,
   "nombreTransportista": "Expreso Andino",
   "precioFinal": 18.0,
   "precioCambio": false,
   "precioEsEstimado": true,
-  "fechaConfirmacion": "2026-11-19T17:05:24-05:00"
+  "fechaConfirmacion": "2026-11-23T14:14:06-05:00"
 }
 
 [2.3] Verificación en BD para T7 (IdCorrelacionPrecio debe ser NULL y comentario estimado):
 CodigoSeguimiento                                  IdCorrelacion                                                                    IdCorrelacionPrecio                                                              IdCorrelacionRegistro                                                            Estado                                   IdTransportistaElegida
 -------------------------------------------------- -------------------------------------------------------------------------------- -------------------------------------------------------------------------------- -------------------------------------------------------------------------------- ---------------------------------------- ----------------------
-MED-2026-000035                                    COU-QA-B0-T7-COT-1795125923                                                      NULL                                                                             e5967185-9ad0-4c43-bf06-da2d056e32b8                                             CONFIRMADO                                                    7
+MED-2026-000059                                    COU-QA-B0-T7-COT-1795461245                                                      NULL                                                                             01a209d4-6c10-7681-a783-2ad0d693ae9d                                             CONFIRMADO                                                    7
 
 (1 rows affected)
 IdEnvio     Estado                                   Comentario                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
 ----------- ---------------------------------------- --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-       3045 COTIZADO                                 NULL                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
-       3045 CONFIRMADO                               Confirmado con precio estimado (sin B3)                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+       4068 COTIZADO                                 NULL                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+       4068 CONFIRMADO                               Confirmado con precio estimado (sin B3)                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
 
 (2 rows affected)
 IdOpcion                       PrecioProveedor PrecioEsEstimado Elegida
 ------------------------------ --------------- ---------------- -------
-OPT-9CCFDA                               18.00                1       1
+OPT-04A624                               18.00                1       1
 
 (1 rows affected)
   [VERIFICADO] Caso 2 completado exitosamente: confirmado sin B3 con precio estimado.
@@ -131,31 +131,31 @@ OPT-9CCFDA                               18.00                1       1
 --------------------------------------------------------------------------------
 
 [3.1] POST /cotizar (T8): HTTP 200
-  Opción obtenida para T8: OPT-13DEFD (Precio referencial: 15.3)
+  Opción obtenida para T8: OPT-78F48F (Precio referencial: 15.3)
 
 [3.2] POST /confirmar (T8, precioEnLinea=true):
   HTTP Status: 200
   Respuesta: {
-  "idCorrelacion": "COU-QA-B0-T8-CONF-1795125925",
+  "idCorrelacion": "COU-QA-B0-T8-CONF-1795461247",
   "estado": "CONFIRMADO",
-  "codigoSeguimiento": "MED-2026-000036",
+  "codigoSeguimiento": "MED-2026-000060",
   "idTransportista": 8,
   "nombreTransportista": "Transportes R\u00c3\u00a1pido Sur",
   "precioFinal": 15.3,
   "precioCambio": false,
   "precioEsEstimado": false,
-  "fechaConfirmacion": "2026-11-19T17:05:25-05:00"
+  "fechaConfirmacion": "2026-11-23T14:14:07-05:00"
 }
 
 [3.3] Verificación en BD para T8 (IdCorrelacionPrecio debe estar poblado):
 CodigoSeguimiento                                  IdCorrelacion                                                                    IdCorrelacionPrecio                                                              IdCorrelacionRegistro                                                            Estado                                   IdTransportistaElegida
 -------------------------------------------------- -------------------------------------------------------------------------------- -------------------------------------------------------------------------------- -------------------------------------------------------------------------------- ---------------------------------------- ----------------------
-MED-2026-000036                                    COU-QA-B0-T8-COT-1795125925                                                      24e205ce-e5f1-41c7-b18e-22a44b12802f                                             0643d6cc-4ef4-4078-9791-f98aeb47f16a                                             CONFIRMADO                                                    8
+MED-2026-000060                                    COU-QA-B0-T8-COT-1795461247                                                      01a209d4-710c-73d6-9390-bc80fb6606dd                                             01a209d4-7177-7d75-a6ad-654d120ed9ae                                             CONFIRMADO                                                    8
 
 (1 rows affected)
 IdOpcion                       PrecioProveedor PrecioEsEstimado Elegida
 ------------------------------ --------------- ---------------- -------
-OPT-13DEFD                               15.30                0       1
+OPT-78F48F                               15.30                0       1
 
 (1 rows affected)
   [VERIFICADO] Caso 3 completado exitosamente: pasó por B3, IdCorrelacionPrecio poblado y precioEsEstimado=False.

@@ -1,6 +1,6 @@
 ================================================================================
 EVIDENCIA DE PRUEBA: BLOQUE 2 - EL MEDIADOR RECIBE EL SOBRE NUEVO (R6 Y C2 v2.0)
-Fecha y hora: 2026-11-17 16:54:33
+Fecha y hora: 2026-11-23 14:12:50
 Servidor evaluado: http://localhost:5250
 ================================================================================
 
@@ -28,14 +28,14 @@ Request: POST /v1/eett/eventos
   }
 }
 
-Response (HTTP 202 en 0.073 s):
+Response (HTTP 202 en 1.001 s):
 {
   "idEvento": "0193a1b2-0c3d-7e4f-8a9b-000000000001",
   "recibido": true
 }
 
 Paso 1.2: Reenvío idéntico (mismo idEvento, mismo contenido) -> Swallow/Reacuse
-Response duplicado (HTTP 202 en 0.009 s):
+Response duplicado (HTTP 202 en 0.035 s):
 {
   "idEvento": "0193a1b2-0c3d-7e4f-8a9b-000000000001",
   "recibido": true
@@ -69,7 +69,7 @@ Request conflictivo (mismo idEvento, diferente cuerpo):
   }
 }
 
-Response (HTTP 409 en 0.016 s):
+Response (HTTP 409 en 0.077 s):
 {
   "error": "CONFLICTO_ID_EVENTO",
   "detalle": "El idEvento '0193a1b2-0c3d-7e4f-8a9b-000000000001' ya fue registrado previamente con un contenido diferente (R5).",
@@ -80,7 +80,7 @@ Response (HTTP 409 en 0.016 s):
 Verificación en BD: Registro de conflicto auditado:
 IdEventoRecibido IdEvento                                                                         EsConflicto RequiereMensajeRechazado MotivoRechazo                                                                                       
 ---------------- -------------------------------------------------------------------------------- ----------- ------------------------ ----------------------------------------------------------------------------------------------------
-            1008 0193a1b2-0c3d-7e4f-8a9b-000000000001                                                       1                        1 CONFLICTO_CONTENIDO                                                                                 
+            2021 0193a1b2-0c3d-7e4f-8a9b-000000000001                                                       1                        1 CONFLICTO_CONTENIDO                                                                                 
 
 (1 rows affected)
 Resultado: Conflicto detectado, guardado en BD con EsConflicto=1 y rechazado con 409.
@@ -107,7 +107,7 @@ Request transición inválida (CONFIRMADO -> ENTREGADO):
   }
 }
 
-Response (HTTP 202 en 0.020 s):
+Response (HTTP 202 en 0.033 s):
 {
   "idEvento": "0193a1b2-0c3d-7e4f-8a9b-000000000003",
   "recibido": true
@@ -116,7 +116,7 @@ Response (HTTP 202 en 0.020 s):
 Verificación en BD: Evento guardado y marcado para rechazo:
 IdEventoRecibido IdEvento                                                                         RequiereMensajeRechazado MotivoRechazo                                                                                        Procesado
 ---------------- -------------------------------------------------------------------------------- ------------------------ ---------------------------------------------------------------------------------------------------- ---------
-            1009 0193a1b2-0c3d-7e4f-8a9b-000000000003                                                                    1 TRANSICION_INVALIDA: No se permite pasar de 'CONFIRMADO' a 'ENTREGADO'.                                      0
+            2022 0193a1b2-0c3d-7e4f-8a9b-000000000003                                                                    1 TRANSICION_INVALIDA: No se permite pasar de 'CONFIRMADO' a 'ENTREGADO'.                                      0
 
 (1 rows affected)
 Verificación en BD: Estado actual del envío: Estado                                  
@@ -148,7 +148,7 @@ Request con salto de secuencia (última contigua=1, recibida=4):
   }
 }
 
-Response (HTTP 202 en 0.017 s):
+Response (HTTP 202 en 0.119 s):
 {
   "idEvento": "0193a1b2-0c3d-7e4f-8a9b-000000000004",
   "recibido": true
@@ -157,7 +157,7 @@ Response (HTTP 202 en 0.017 s):
 Verificación en BD: Hueco registrado en MED.SecuenciaHueco:
 IdHueco     IdTransportista SecuenciaEsperada SecuenciaRecibida Resuelto
 ----------- --------------- ----------------- ----------------- --------
-          2              77                 3                 4        0
+       1008              77                 3                 4        0
 
 (1 rows affected)
 Verificación en BD: Secuencia contigua actual:
