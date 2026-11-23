@@ -1,0 +1,173 @@
+================================================================================
+EVIDENCIA DE PRUEBA: BLOQUE 2 - EL MEDIADOR RECIBE EL SOBRE NUEVO (R6 Y C2 v2.0)
+Fecha y hora: 2026-11-23 14:12:50
+Servidor evaluado: http://localhost:5250
+================================================================================
+
+--------------------------------------------------------------------------------
+--- ESCENARIO 1: Evento duplicado reacusado sin reprocesar (HTTP 202) ---
+--------------------------------------------------------------------------------
+Paso 1.1: Envío inicial de evento válido con sobre C2 v2.0
+Request: POST /v1/eett/eventos
+{
+  "idEvento": "0193a1b2-0c3d-7e4f-8a9b-000000000001",
+  "tipoEvento": "EN_VIAJE",
+  "versionContrato": "2.0",
+  "secuencia": 1,
+  "entidad": {
+    "tipo": "ENVIO",
+    "id": "MED-2026-QA-R6-01"
+  },
+  "versionEntidad": 1,
+  "fechaEvento": "2026-11-17T10:00:00-05:00",
+  "emisor": "CONECTOR",
+  "idTransportista": 77,
+  "datos": {
+    "idPunto": 10,
+    "horaSalida": "10:00"
+  }
+}
+
+Response (HTTP 202 en 1.001 s):
+{
+  "idEvento": "0193a1b2-0c3d-7e4f-8a9b-000000000001",
+  "recibido": true
+}
+
+Paso 1.2: Reenvío idéntico (mismo idEvento, mismo contenido) -> Swallow/Reacuse
+Response duplicado (HTTP 202 en 0.035 s):
+{
+  "idEvento": "0193a1b2-0c3d-7e4f-8a9b-000000000001",
+  "recibido": true
+}
+
+Verificación en BD: Total registros guardados para IdEvento: -----------
+          1
+
+(1 rows affected)
+Resultado: Evento recibido y reacusado exitosamente con 202 sin duplicar reprocesamiento.
+
+--------------------------------------------------------------------------------
+--- ESCENARIO 2: Conflicto registrado (mismo ID, distinto body) ---
+--------------------------------------------------------------------------------
+Request conflictivo (mismo idEvento, diferente cuerpo):
+{
+  "idEvento": "0193a1b2-0c3d-7e4f-8a9b-000000000001",
+  "tipoEvento": "ARRIBADO",
+  "versionContrato": "2.0",
+  "secuencia": 1,
+  "entidad": {
+    "tipo": "ENVIO",
+    "id": "MED-2026-QA-R6-01"
+  },
+  "versionEntidad": 2,
+  "fechaEvento": "2026-11-17T11:00:00-05:00",
+  "emisor": "CONECTOR",
+  "idTransportista": 77,
+  "datos": {
+    "terminalDestino": "TRUJILLO_CENTRO"
+  }
+}
+
+Response (HTTP 409 en 0.077 s):
+{
+  "error": "CONFLICTO_ID_EVENTO",
+  "detalle": "El idEvento '0193a1b2-0c3d-7e4f-8a9b-000000000001' ya fue registrado previamente con un contenido diferente (R5).",
+  "campo": "idEvento",
+  "idCorrelacion": null
+}
+
+Verificación en BD: Registro de conflicto auditado:
+IdEventoRecibido IdEvento                                                                         EsConflicto RequiereMensajeRechazado MotivoRechazo                                                                                       
+---------------- -------------------------------------------------------------------------------- ----------- ------------------------ ----------------------------------------------------------------------------------------------------
+            2021 0193a1b2-0c3d-7e4f-8a9b-000000000001                                                       1                        1 CONFLICTO_CONTENIDO                                                                                 
+
+(1 rows affected)
+Resultado: Conflicto detectado, guardado en BD con EsConflicto=1 y rechazado con 409.
+
+--------------------------------------------------------------------------------
+--- ESCENARIO 3: Transición inválida tragada y marcada (sin devolver 409) ---
+--------------------------------------------------------------------------------
+Request transición inválida (CONFIRMADO -> ENTREGADO):
+{
+  "idEvento": "0193a1b2-0c3d-7e4f-8a9b-000000000003",
+  "tipoEvento": "ENTREGADO",
+  "versionContrato": "2.0",
+  "secuencia": 2,
+  "entidad": {
+    "tipo": "ENVIO",
+    "id": "MED-2026-QA-R6-TR"
+  },
+  "versionEntidad": 1,
+  "fechaEvento": "2026-11-17T12:00:00-05:00",
+  "emisor": "CONECTOR",
+  "idTransportista": 77,
+  "datos": {
+    "recibidoPor": "Destinatario directo"
+  }
+}
+
+Response (HTTP 202 en 0.033 s):
+{
+  "idEvento": "0193a1b2-0c3d-7e4f-8a9b-000000000003",
+  "recibido": true
+}
+
+Verificación en BD: Evento guardado y marcado para rechazo:
+IdEventoRecibido IdEvento                                                                         RequiereMensajeRechazado MotivoRechazo                                                                                        Procesado
+---------------- -------------------------------------------------------------------------------- ------------------------ ---------------------------------------------------------------------------------------------------- ---------
+            2022 0193a1b2-0c3d-7e4f-8a9b-000000000003                                                                    1 TRANSICION_INVALIDA: No se permite pasar de 'CONFIRMADO' a 'ENTREGADO'.                                      0
+
+(1 rows affected)
+Verificación en BD: Estado actual del envío: Estado                                  
+----------------------------------------
+CONFIRMADO                              
+
+(1 rows affected)
+Resultado: Transición inválida tragada con 202, guardada en BD con RequiereMensajeRechazado=1 y estado del envío intacto.
+
+--------------------------------------------------------------------------------
+--- ESCENARIO 4: Control de secuencias contiguas y huecos (R6) ---
+--------------------------------------------------------------------------------
+Request con salto de secuencia (última contigua=1, recibida=4):
+{
+  "idEvento": "0193a1b2-0c3d-7e4f-8a9b-000000000004",
+  "tipoEvento": "ARRIBADO",
+  "versionContrato": "2.0",
+  "secuencia": 4,
+  "entidad": {
+    "tipo": "ENVIO",
+    "id": "MED-2026-QA-R6-01"
+  },
+  "versionEntidad": 2,
+  "fechaEvento": "2026-11-17T13:00:00-05:00",
+  "emisor": "CONECTOR",
+  "idTransportista": 77,
+  "datos": {
+    "terminal": "TRUJILLO_TERMINAL"
+  }
+}
+
+Response (HTTP 202 en 0.119 s):
+{
+  "idEvento": "0193a1b2-0c3d-7e4f-8a9b-000000000004",
+  "recibido": true
+}
+
+Verificación en BD: Hueco registrado en MED.SecuenciaHueco:
+IdHueco     IdTransportista SecuenciaEsperada SecuenciaRecibida Resuelto
+----------- --------------- ----------------- ----------------- --------
+       1008              77                 3                 4        0
+
+(1 rows affected)
+Verificación en BD: Secuencia contigua actual:
+IdTransportista UltimaSecuenciaContigua
+--------------- -----------------------
+             77                       2
+
+(1 rows affected)
+Resultado: Salto detectado, hueco registrado en BD y secuencia contigua congelada en 1 hasta recuperación.
+
+================================================================================
+TODAS LAS PRUEBAS COMPLETADAS EXITOSAMENTE CONFORME A REGLA R6 Y C2 v2.0
+================================================================================

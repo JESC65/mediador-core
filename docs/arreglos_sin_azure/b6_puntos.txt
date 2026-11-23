@@ -1,0 +1,114 @@
+================================================================================
+EVIDENCIA DE PRUEBA: BLOQUE 3 - PUNTOS DE RECEPCIÓN (B6) Y SALUD SEGÚN C2 v2.0 §6
+Fecha y hora: 2026-11-23 14:15:09
+Simulador T7 (puntos=true):  https://localhost:7201
+Simulador T9 (puntos=false): https://localhost:7203
+Mediador:                    https://localhost:7250
+================================================================================
+
+[INIT] Deteniendo procesos dotnet previos...
+[INIT] Verificando idempotencia de database/06_puntos.sql...
+  [OK] database/06_puntos.sql ejecutado 2 veces con éxito (idempotente).
+[INIT] Preparando base de datos MediadorDev...
+[INIT] Base de datos MediadorDev lista para la prueba.
+
+[PASO 1] Iniciando Simulador Instancia 1 (T7, puerto 7201)...
+[PASO 2] Iniciando Simulador Instancia 2 (T9, puerto 7203)...
+[WAIT] Esperando que los simuladores estén arriba...
+  [OK] Simulador T7 respondiendo en https://localhost:7201
+  [OK] Simulador T9 respondiendo en https://localhost:7203
+
+[PASO 3] Iniciando Mediador (puerto 7250)...
+[WAIT] Esperando que Mediador esté arriba y sincronice capacidades y puntos al arranque...
+  [OK] Mediador levantado y respondiendo en https://localhost:7250
+
+--------------------------------------------------------------------------------
+--- CASO 1: B6 exitoso y carga en BD (Transportista 7, puntos=true) ---
+--------------------------------------------------------------------------------
+
+[1.1] GET https://localhost:7201/v1/puntos (Transportista 7):
+  HTTP Status: 200
+  Respuesta: {
+  "idTransportista": 7,
+  "puntos": [
+    {
+      "codigo": "PTO-01",
+      "nombre": "Terminal de ejemplo Norte",
+      "direccion": "Av. Ejemplo 100",
+      "ubigeo": "150101"
+    },
+    {
+      "codigo": "PTO-02",
+      "nombre": "Agencia de ejemplo Centro",
+      "direccion": "Jr. Ejemplo 200",
+      "ubigeo": "130101"
+    }
+  ]
+}
+  [VERIFICADO] B6 en Simulador T7 responde HTTP 200 con sus puntos sintéticos.
+
+[1.2] Verificación en Base de Datos: MED.PuntoRecepcion para Transportista 7:
+IdPunto     IdTransportista CodigoExterno                                      Nombre                                                                                                                                                                                                   Direccion                                                                                                                                                                                                                                                                                                    Ubigeo Latitud     Longitud    Horario                                                                                                                                                                                                  Version     Activo
+----------- --------------- -------------------------------------------------- -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ ------ ----------- ----------- -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ----------- ------
+       1006               7 PTO-01                                             Terminal de ejemplo Norte                                                                                                                                                                                Av. Ejemplo 100                                                                                                                                                                                                                                                                                              150101        NULL        NULL NULL                                                                                                                                                                                                               1      1
+       1007               7 PTO-02                                             Agencia de ejemplo Centro                                                                                                                                                                                Jr. Ejemplo 200                                                                                                                                                                                                                                                                                              130101        NULL        NULL NULL                                                                                                                                                                                                               1      1
+
+(2 rows affected)
+  [VERIFICADO] Puntos cargados en MED.PuntoRecepcion con Version=1 y Latitud, Longitud y Horario en NULL.
+
+[1.3] Verificación de endpoint POST /v1/transportistas/7/puntos en Mediador:
+  POST /v1/transportistas/7/puntos -> HTTP 200: {'encontrado': True, 'soportado': True, 'exitoso': True, 'detalle': None, 'puntosSincronizados': 2}
+  POST /v1/transportistas/999/puntos -> HTTP 404: {'error': 'RECURSO_NO_ENCONTRADO', 'detalle': 'La transportista con Id 999 no existe.', 'campo': None, 'idCorrelacion': None}
+  [VERIFICADO] Endpoint POST /v1/transportistas/{id}/puntos y 404 R8 correctos.
+
+--------------------------------------------------------------------------------
+--- CASO 2: B6 no soportado -> HTTP 501 (Transportista 9, puntos=false) ---
+--------------------------------------------------------------------------------
+
+[2.1] GET https://localhost:7203/v1/puntos (Transportista 9):
+  HTTP Status: 501
+  Respuesta: {
+  "error": "OPERACION_NO_SOPORTADA",
+  "detalle": "La transportista no soporta la consulta de puntos de recepci\u00f3n.",
+  "campo": null,
+  "idCorrelacion": null
+}
+  [VERIFICADO] B6 en Simulador T9 responde HTTP 501 con cuerpo R8 obligatorio.
+
+[2.2] Verificación en Base de Datos: MED.PuntoRecepcion para Transportista 9 (debe tener 0 filas):
+TotalPuntosT9
+-------------
+            0
+
+(1 rows affected)
+  [VERIFICADO] En Mediador no se cargaron puntos para Transportista 9.
+
+--------------------------------------------------------------------------------
+--- CASO 3: Endpoint de Salud (GET /v1/salud) ---
+--------------------------------------------------------------------------------
+
+[3.1] GET https://localhost:7201/v1/salud (Transportista 7):
+  HTTP Status: 200
+  Respuesta: {
+  "estado": "ACTIVO",
+  "idTransportista": 7,
+  "ultimaSecuencia": 8,
+  "fechaHora": "2026-11-23T14:15:27-05:00"
+}
+  [VERIFICADO] Endpoint /v1/salud en T7 responde HTTP 200 OK con últimaSecuencia=8 real de la bandeja.
+
+[3.2] GET https://localhost:7203/v1/salud (Transportista 9):
+  HTTP Status: 200
+  Respuesta: {
+  "estado": "ACTIVO",
+  "idTransportista": 9,
+  "ultimaSecuencia": 0,
+  "fechaHora": "2026-11-23T14:15:27-05:00"
+}
+  [VERIFICADO] Endpoint /v1/salud en T9 responde HTTP 200 OK.
+
+================================================================================
+TODAS LAS PRUEBAS DEL BLOQUE 3 (B6 PUNTOS Y SALUD) COMPLETADAS EXITOSAMENTE
+================================================================================
+
+[CLEANUP] Deteniendo procesos...

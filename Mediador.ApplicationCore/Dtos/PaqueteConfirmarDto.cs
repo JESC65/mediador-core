@@ -2,6 +2,7 @@ namespace Mediador.ApplicationCore.Dtos;
 
 public class PaqueteConfirmarDto
 {
+    public int Cantidad { get; set; } = 1;
     public string? Descripcion { get; set; }
     public decimal PesoKg { get; set; }
     public decimal? LargoCm { get; set; }

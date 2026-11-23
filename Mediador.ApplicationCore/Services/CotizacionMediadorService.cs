@@ -1,6 +1,7 @@
 using Mediador.ApplicationCore.Dtos;
 using Mediador.ApplicationCore.Interfaces;
 using Mediador.ApplicationCore.Utilidades;
+using Microsoft.Extensions.Options;
 
 namespace Mediador.ApplicationCore.Services;
 
@@ -9,15 +10,18 @@ public class CotizacionMediadorService : ICotizacionMediadorService
     private readonly IEnvioRepository _envioRepositorio;
     private readonly ITransportistaCotizableRepository _transportistaRepositorio;
     private readonly ICotizacionRepository _cotizacionRepositorio;
+    private readonly ParametrosOptions _parametros;
 
     public CotizacionMediadorService(
         IEnvioRepository envioRepositorio,
         ITransportistaCotizableRepository transportistaRepositorio,
-        ICotizacionRepository cotizacionRepositorio)
+        ICotizacionRepository cotizacionRepositorio,
+        IOptions<ParametrosOptions> parametros)
     {
         _envioRepositorio = envioRepositorio;
         _transportistaRepositorio = transportistaRepositorio;
         _cotizacionRepositorio = cotizacionRepositorio;
+        _parametros = parametros.Value;
     }
 
     public async Task<ResultadoCotizacionDto> Cotizar(CotizarRequestDto request)
@@ -54,7 +58,7 @@ public class CotizacionMediadorService : ICotizacionMediadorService
         }
 
         var hayPaqueteFragil = request.Paquetes.Any(p => p.EsFragil);
-        var vigenteHasta = RelojLima.Ahora().AddHours(2);
+        var vigenteHasta = RelojLima.Ahora().Add(_parametros.t_vigencia_cotizacion);
         var paraGuardar = new List<CotizacionParaGuardarDto>();
 
         foreach (var candidata in candidatas)

@@ -18,4 +18,6 @@ public class Envio
     public DateTimeOffset FechaRegistro { get; set; }
     public DateTimeOffset? FechaConfirmacion { get; set; }
     public string? Observacion { get; set; }
+    public string? IdCorrelacionPrecio { get; set; }
+    public string? IdCorrelacionRegistro { get; set; }
 }

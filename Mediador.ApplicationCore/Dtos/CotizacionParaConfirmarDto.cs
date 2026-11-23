@@ -13,6 +13,9 @@ public class CotizacionParaConfirmarDto
     public string NombreTransportista { get; set; } = string.Empty;
     public string? UrlConector { get; set; }
 
+    // Capacidades C2 v2.0 §3: si no tiene fila en TransportistaCapacidad, se asume true
+    public bool PrecioEnLinea { get; set; } = true;
+
     // Código externo de la ruta (Ruta.CodigoRutaExterno) — lo que espera B3/B4, no el id interno.
     public string CodigoRutaExterno { get; set; } = string.Empty;
 
@@ -20,4 +23,9 @@ public class CotizacionParaConfirmarDto
 
     // Estado actual del envío al momento de buscar la opción — para el paso 1 (idempotencia).
     public string? CodigoSeguimientoEnvio { get; set; }
+    public string EstadoEnvio { get; set; } = string.Empty;
+
+    // Identificadores de correlación estables hacia la transportista (B3 y B4, sin fecha, R5).
+    public string? IdCorrelacionPrecio { get; set; }
+    public string? IdCorrelacionRegistro { get; set; }
 }

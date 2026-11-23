@@ -1,4 +1,5 @@
 using Mediador.ApplicationCore.Dtos;
+using Mediador.ApplicationCore.Exceptions;
 using Mediador.ApplicationCore.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,12 +24,12 @@ public class CotizarController : ControllerBase
 
         if (resultado.EstadoConflicto is not null)
         {
-            return Conflict(new
-            {
-                idCorrelacion = request.IdCorrelacion,
-                estadoActual = resultado.EstadoConflicto,
-                mensaje = "Ya existe un envío con este idCorrelacion en un estado distinto de COTIZADO."
-            });
+            throw new MediadorApiException(
+                statusCode: StatusCodes.Status409Conflict,
+                error: "ESTADO_INVALIDO",
+                detalle: $"Ya existe un envío con este idCorrelacion en un estado distinto de COTIZADO (estado actual: {resultado.EstadoConflicto}).",
+                campo: null,
+                idCorrelacion: request.IdCorrelacion);
         }
 
         return Ok(resultado.Respuesta);

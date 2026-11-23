@@ -1,0 +1,204 @@
+================================================================================
+EVIDENCIA DE PRUEBA: BLOQUE 3 - IDCORRELACION ESTABLE SIN FECHA (REGLA R5)
+Fecha y hora: 2026-11-13 17:09:41
+IdCorrelacion de prueba (Courier): COU-B3-QA-1794607689
+================================================================================
+
+--------------------------------------------------------------------------------
+--- PASO 1: Cotizar envío (A1 /cotizar) ---
+--------------------------------------------------------------------------------
+Request: POST https://localhost:7250/cotizar
+{
+  "idCorrelacion": "COU-B3-QA-1794607689",
+  "idEnvioCourier": "ENV-QA-B3-01",
+  "idCourier": 1,
+  "ubigeoOrigen": "150101",
+  "ubigeoDestino": "130101",
+  "tipoCarga": "CARGA_LIVIANA",
+  "fechaSolicitud": "2026-11-13T14:00:00-05:00",
+  "paquetes": [
+    {
+      "descripcion": "Paquete prueba B3",
+      "pesoKg": 4.5,
+      "cantidad": 1,
+      "esFragil": false
+    }
+  ]
+}
+
+Response (HTTP 200 en 3.268 s):
+{
+  "idCorrelacion": "COU-B3-QA-1794607689",
+  "estado": "COTIZADO",
+  "pesoTotalKg": 4.5,
+  "cantidadPaquetes": 1,
+  "opciones": [
+    {
+      "idOpcion": "OPT-E3DEB9",
+      "idTransportista": 8,
+      "nombreTransportista": "Transportes RÃ¡pido Sur",
+      "precioReferencial": 15.3,
+      "precioEsEstimado": true,
+      "frecuenciaSalidas": "Diaria",
+      "aceptaFragil": false,
+      "vigenteHasta": "2026-11-13T19:08:12-05:00"
+    },
+    {
+      "idOpcion": "OPT-A77146",
+      "idTransportista": 7,
+      "nombreTransportista": "Expreso Andino",
+      "precioReferencial": 18.0,
+      "precioEsEstimado": true,
+      "frecuenciaSalidas": "Diaria",
+      "aceptaFragil": false,
+      "vigenteHasta": "2026-11-13T19:08:12-05:00"
+    },
+    {
+      "idOpcion": "OPT-97606D",
+      "idTransportista": 9,
+      "nombreTransportista": "Carga Segura del Norte",
+      "precioReferencial": 22.5,
+      "precioEsEstimado": true,
+      "frecuenciaSalidas": "Diaria",
+      "aceptaFragil": true,
+      "vigenteHasta": "2026-11-13T19:08:12-05:00"
+    }
+  ]
+}
+
+--------------------------------------------------------------------------------
+--- PASO 2: Confirmar con SIN_RESPUESTA en B4 (/registrar) ---
+--------------------------------------------------------------------------------
+Se configuró Simulador:Escenarios:registrar = 'SIN_RESPUESTA'
+Request: POST https://localhost:7250/confirmar
+{
+  "idCorrelacion": "COU-B3-QA-1794607689",
+  "idOpcion": "OPT-A77146",
+  "remitente": {
+    "tipoDocumento": "DNI",
+    "numeroDocumento": "45678912",
+    "nombres": "Juan",
+    "apellidos": "Pérez Alva",
+    "telefono": "999888777",
+    "direccion": "Av. Javier Prado Este 2450",
+    "ubigeo": "150101"
+  },
+  "consignado": {
+    "tipoDocumento": "DNI",
+    "numeroDocumento": "72345678",
+    "nombres": "Rosa",
+    "apellidos": "Gómez Salas",
+    "telefono": "988777666",
+    "direccion": "Calle Los Pinos 123",
+    "ubigeo": "130101"
+  }
+}
+
+Response (HTTP 200 en 21.065 s):
+{
+  "idCorrelacion": "COU-B3-QA-1794607689",
+  "estado": "PENDIENTE_CONFIRMACION",
+  "codigoSeguimiento": "MED-2026-000031",
+  "idTransportista": 7,
+  "nombreTransportista": "Expreso Andino",
+  "motivo": "La transportista no respondió al registro dentro del tiempo esperado. Reintente la confirmación."
+}
+
+Estado en Base de Datos (MED.Envio) tras agotar reintentos:
+Columnas: IdEnvio | CodigoSeguimiento | Estado | IdCorrelacionPrecio | IdCorrelacionRegistro
+1045 MED-2026-000031 PENDIENTE_CONFIRMACION 98a9a566-b491-4368-9dc4-c2e2673532aa fadd454e-1eea-438a-b488-f5b4b4eae702
+
+(1 rows affected)
+
+Identificador generado para B3 (Precio real):     98a9a566-b491-4368-9dc4-c2e2673532aa (UUID v7/v4 sin fecha)
+Identificador generado para B4 (Registro envío):   fadd454e-1eea-438a-b488-f5b4b4eae702 (UUID v7/v4 sin fecha)
+
+--------------------------------------------------------------------------------
+--- PASO 3: Reinicio del servicio Mediador y retiro de escenario SIN_RESPUESTA ---
+--------------------------------------------------------------------------------
+1. Se detuvo por completo el proceso del servicio Mediador.
+2. Se retiró la configuración 'SIN_RESPUESTA' dejando modo NORMAL.
+3. Se levantó nuevamente el Mediador en https://localhost:7250.
+4. El Simulador se mantuvo activo en https://localhost:7201.
+
+--------------------------------------------------------------------------------
+--- PASO 4: Reintento de Confirmación (POST /confirmar) tras reinicio ---
+--------------------------------------------------------------------------------
+Request: POST https://localhost:7250/confirmar (Mismo payload idOpcion y mismo idCorrelacion)
+{
+  "idCorrelacion": "COU-B3-QA-1794607689",
+  "idOpcion": "OPT-A77146",
+  "remitente": {
+    "tipoDocumento": "DNI",
+    "numeroDocumento": "45678912",
+    "nombres": "Juan",
+    "apellidos": "Pérez Alva",
+    "telefono": "999888777",
+    "direccion": "Av. Javier Prado Este 2450",
+    "ubigeo": "150101"
+  },
+  "consignado": {
+    "tipoDocumento": "DNI",
+    "numeroDocumento": "72345678",
+    "nombres": "Rosa",
+    "apellidos": "Gómez Salas",
+    "telefono": "988777666",
+    "direccion": "Calle Los Pinos 123",
+    "ubigeo": "130101"
+  }
+}
+
+Response (HTTP 200 en 3.295 s):
+{
+  "idCorrelacion": "COU-B3-QA-1794607689",
+  "estado": "CONFIRMADO",
+  "codigoSeguimiento": "MED-2026-000031",
+  "idTransportista": 7,
+  "nombreTransportista": "Expreso Andino",
+  "precioFinal": 18.0,
+  "precioCambio": false,
+  "fechaConfirmacion": "2026-11-13T17:09:44-05:00"
+}
+
+Estado en Base de Datos (MED.Envio) tras reintento exitoso:
+1045 MED-2026-000031 CONFIRMADO 98a9a566-b491-4368-9dc4-c2e2673532aa fadd454e-1eea-438a-b488-f5b4b4eae702 2026-11-13 17:09:44.0000000 -05:00
+
+(1 rows affected)
+
+Comparación de idCorrelacionRegistro:
+  Antes de reiniciar: fadd454e-1eea-438a-b488-f5b4b4eae702
+  Después de reiniciar: fadd454e-1eea-438a-b488-f5b4b4eae702
+VERIFICADO: El idCorrelacion enviado al simulador fue EXACTAMENTE el mismo antes y después de reiniciar.
+
+--------------------------------------------------------------------------------
+--- PASO 5: Verificación de Idempotencia y Entrega de una sola guía ---
+--------------------------------------------------------------------------------
+1. Tercera llamada a POST https://localhost:7250/confirmar:
+Response (HTTP 200 en 0.132 s):
+{
+  "idCorrelacion": "COU-B3-QA-1794607689",
+  "estado": "YA_CONFIRMADO",
+  "codigoSeguimiento": "MED-2026-000031",
+  "idTransportista": 7,
+  "nombreTransportista": "Expreso Andino",
+  "precioFinal": 18.0
+}
+
+2. Verificación directa en el Simulador EETT (POST https://localhost:7201/registrar) con idCorrelacion 'fadd454e-1eea-438a-b488-f5b4b4eae702':
+Respuesta Simulador llamada 1 (HTTP 200):
+{
+  "idCorrelacion": "fadd454e-1eea-438a-b488-f5b4b4eae702",
+  "aceptado": true,
+  "numeroGuiaEETT": "0012-00000001",
+  "fechaRegistro": "2026-11-13T17:09:44-05:00"
+}
+
+Respuesta Simulador llamada 2 (HTTP 200):
+{
+  "idCorrelacion": "fadd454e-1eea-438a-b488-f5b4b4eae702",
+  "aceptado": true,
+  "numeroGuiaEETT": "0012-00000001",
+  "fechaRegistro": "2026-11-13T17:09:44-05:00"
+}
+
+VERIFICADO: El simulador devolvió una sola y exactamente la misma guía (0012-00000001) bajo el idCorrelacion estable 'fadd454e-1eea-438a-b488-f5b4b4eae702'.

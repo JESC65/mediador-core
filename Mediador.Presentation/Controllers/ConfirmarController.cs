@@ -1,4 +1,5 @@
 using Mediador.ApplicationCore.Dtos;
+using Mediador.ApplicationCore.Exceptions;
 using Mediador.ApplicationCore.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -22,7 +23,12 @@ public class ConfirmarController : ControllerBase
 
         if (resultado is null)
         {
-            return NotFound(new { error = "OPCION_NO_ENCONTRADA", idOpcion = request.IdOpcion });
+            throw new MediadorApiException(
+                statusCode: StatusCodes.Status404NotFound,
+                error: "OPCION_NO_ENCONTRADA",
+                detalle: $"No se encontró la opción de cotización '{request.IdOpcion}'.",
+                campo: "idOpcion",
+                idCorrelacion: request.IdCorrelacion);
         }
 
         return Ok(resultado);

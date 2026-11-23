@@ -23,7 +23,7 @@ public interface IConfirmacionRepository
     Task<string> GenerarSiguienteCodigoSeguimiento();
 
     /// <summary>Pasos 6 y 7 en una sola transacción: guarda el código, marca la cotización elegida e inserta el estado CONFIRMADO.</summary>
-    Task<bool> ConfirmarTransaccional(int idEnvio, int idCotizacion, int idTransportista, decimal precioFinal, string codigoSeguimiento, DateTimeOffset fechaConfirmacion);
+    Task<bool> ConfirmarTransaccional(int idEnvio, int idCotizacion, int idTransportista, decimal precioFinal, string codigoSeguimiento, DateTimeOffset fechaConfirmacion, bool precioEsEstimado = false);
 
     /// <summary>
     /// Red de seguridad: el registro en la transportista (paso 5) ya tuvo éxito pero la
@@ -31,4 +31,14 @@ public interface IConfirmacionRepository
     /// aparte, fuera de la transacción fallida, en Observacion (no hay columna dedicada).
     /// </summary>
     Task GuardarPendienteConfirmacion(int idEnvio, string codigoSeguimiento, string? numeroGuiaEett);
+
+    /// <summary>
+    /// Obtiene o genera y persiste el idCorrelacion único y sin fecha (R5) para la operación B3 (Precio) en MED.Envio.
+    /// </summary>
+    Task<string> AsegurarIdCorrelacionPrecio(int idEnvio);
+
+    /// <summary>
+    /// Obtiene o genera y persiste el idCorrelacion único y sin fecha (R5) para la operación B4 (Registro) en MED.Envio.
+    /// </summary>
+    Task<string> AsegurarIdCorrelacionRegistro(int idEnvio);
 }

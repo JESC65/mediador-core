@@ -1,0 +1,90 @@
+--- CONFIGURACIÓN TEMPORAL EN appsettings.Development.json ---
+"Parametros": {
+  "t_vigencia_cotizacion": "00:01:00"
+}
+
+--- PASO 1: Cotizar (Hora aprox: 16:48:02 -05:00) ---
+Request: POST https://localhost:7250/cotizar
+{
+  "idCorrelacion": "COU-2026-0008",
+  "idEnvioCourier": "ENV-9021",
+  "idCourier": 1,
+  "ubigeoOrigen": "150101",
+  "ubigeoDestino": "130101",
+  "tipoCarga": "CARGA_LIVIANA",
+  "fechaSolicitud": "2026-11-12T10:00:00-05:00",
+  "paquetes": [
+    { "descripcion": "Caja", "pesoKg": 4.5, "cantidad": 2, "esFragil": false }
+  ]
+}
+
+Response (HTTP 200 OK):
+{
+  "idCorrelacion": "COU-2026-0008",
+  "estado": "COTIZADO",
+  "pesoTotalKg": 9,
+  "cantidadPaquetes": 2,
+  "opciones": [
+    {
+      "idOpcion": "OPT-54EE92",
+      "idTransportista": 8,
+      "nombreTransportista": "Transportes Rápido Sur",
+      "precioReferencial": 32.3,
+      "precioEsEstimado": true,
+      "frecuenciaSalidas": "Diaria",
+      "aceptaFragil": false,
+      "vigenteHasta": "2026-11-12T16:49:02-05:00"
+    },
+    {
+      "idOpcion": "OPT-7A5F49",
+      "idTransportista": 7,
+      "nombreTransportista": "Expreso Andino",
+      "precioReferencial": 38,
+      "precioEsEstimado": true,
+      "frecuenciaSalidas": "Diaria",
+      "aceptaFragil": false,
+      "vigenteHasta": "2026-11-12T16:49:02-05:00"
+    },
+    {
+      "idOpcion": "OPT-DDFFA5",
+      "idTransportista": 9,
+      "nombreTransportista": "Carga Segura del Norte",
+      "precioReferencial": 47.5,
+      "precioEsEstimado": true,
+      "frecuenciaSalidas": "Diaria",
+      "aceptaFragil": true,
+      "vigenteHasta": "2026-11-12T16:49:02-05:00"
+    }
+  ]
+}
+
+--- PASO 2: Confirmar tras esperar > 1 minuto (después de 16:49:02 -05:00) ---
+Request: POST https://localhost:7250/confirmar
+{
+  "idCorrelacion": "COU-2026-0008",
+  "idOpcion": "OPT-7A5F49",
+  "remitente": {
+    "tipoDocumento": "DNI",
+    "numeroDocumento": "45678912",
+    "nombres": "Juan",
+    "apellidos": "Pérez Alva",
+    "telefono": "999888777",
+    "direccion": "Av. Javier Prado Este 2450",
+    "ubigeo": "150101"
+  },
+  "consignado": {
+    "tipoDocumento": "DNI",
+    "numeroDocumento": "72345678",
+    "nombres": "Rosa",
+    "apellidos": "Gómez Salas",
+    "telefono": "988777666",
+    "direccion": "Calle Los Pinos 123",
+    "ubigeo": "130101"
+  }
+}
+
+Response (HTTP 200 OK):
+{
+  "idCorrelacion": "COU-2026-0008",
+  "estado": "OPCION_EXPIRADA"
+}

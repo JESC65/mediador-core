@@ -1,0 +1,23 @@
+{
+  "Request": {
+    "idCorrelacion": "MED-2026-11-12-000038",
+    "idRuta": "R-LIM-TRU",
+    "tipoCarga": "CARGA_LIVIANA",
+    "paquetes": [
+      {
+        "pesoKg": 4.5,
+        "largoCm": 0,
+        "anchoCm": 0,
+        "altoCm": 0,
+        "esFragil": false
+      }
+    ]
+  },
+  "Response": {
+    "idCorrelacion": "MED-2026-11-12-000038",
+    "disponible": true,
+    "precio": 18.00,
+    "detalleCalculo": "Tramo 0.00-5.00 kg, CARGA_LIVIANA",
+    "vigenteHasta": "2026-11-12T15:30:00-05:00"
+  }
+}

@@ -30,6 +30,10 @@ public class MediadorDbContext : DbContext
     public DbSet<Cotizacion> Cotizaciones => Set<Cotizacion>();
     public DbSet<EventoRecibido> EventosRecibidos => Set<EventoRecibido>();
     public DbSet<EnvioPersona> EnvioPersonas => Set<EnvioPersona>();
+    public DbSet<TransportistaSecuencia> TransportistaSecuencias => Set<TransportistaSecuencia>();
+    public DbSet<SecuenciaHueco> SecuenciasHuecos => Set<SecuenciaHueco>();
+    public DbSet<TransportistaCapacidad> TransportistasCapacidades => Set<TransportistaCapacidad>();
+    public DbSet<PuntoRecepcion> PuntosRecepcion => Set<PuntoRecepcion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -72,6 +76,8 @@ public class MediadorDbContext : DbContext
             e.HasKey(x => x.IdEnvio);
             e.Property(x => x.IdEnvio).ValueGeneratedOnAdd();
             e.Property(x => x.PesoTotalKg).HasPrecision(8, 2);
+            e.Property(x => x.IdCorrelacionPrecio).HasMaxLength(80);
+            e.Property(x => x.IdCorrelacionRegistro).HasMaxLength(80);
         });
 
         modelBuilder.Entity<EnvioPaquete>(e =>
@@ -105,12 +111,54 @@ public class MediadorDbContext : DbContext
             e.ToTable("EventoRecibido", "MED");
             e.HasKey(x => x.IdEventoRecibido);
             e.Property(x => x.IdEventoRecibido).ValueGeneratedOnAdd();
+            e.Property(x => x.IdEvento).HasMaxLength(80).IsRequired();
+            e.Property(x => x.TipoEvento).HasMaxLength(40).IsRequired();
+            e.Property(x => x.VersionContrato).HasMaxLength(10);
+            e.Property(x => x.EntidadTipo).HasMaxLength(30);
+            e.Property(x => x.EntidadId).HasMaxLength(80);
+            e.Property(x => x.Emisor).HasMaxLength(50);
+            e.Property(x => x.HuellaCuerpo).HasMaxLength(256);
+            e.Property(x => x.MotivoRechazo).HasMaxLength(100);
+        });
+        modelBuilder.Entity<TransportistaSecuencia>(e =>
+        {
+            e.ToTable("TransportistaSecuencia", "MED");
+            e.HasKey(x => x.IdTransportista);
+            e.Property(x => x.IdTransportista).ValueGeneratedNever();
+        });
+        modelBuilder.Entity<SecuenciaHueco>(e =>
+        {
+            e.ToTable("SecuenciaHueco", "MED");
+            e.HasKey(x => x.IdHueco);
+            e.Property(x => x.IdHueco).ValueGeneratedOnAdd();
         });
         modelBuilder.Entity<EnvioPersona>(e =>
         {
             e.ToTable("EnvioPersona", "MED");
             e.HasKey(x => x.IdEnvioPersona);
             e.Property(x => x.IdEnvioPersona).ValueGeneratedOnAdd();
+        });
+        modelBuilder.Entity<TransportistaCapacidad>(e =>
+        {
+            e.ToTable("TransportistaCapacidad", "MED");
+            e.HasKey(x => x.IdTransportista);
+            e.Property(x => x.IdTransportista).ValueGeneratedNever();
+            e.Property(x => x.Familia).HasMaxLength(100);
+            e.Property(x => x.VersionConector).HasMaxLength(30);
+            e.Property(x => x.VersionContrato).HasMaxLength(10);
+        });
+        modelBuilder.Entity<PuntoRecepcion>(e =>
+        {
+            e.ToTable("PuntoRecepcion", "MED");
+            e.HasKey(x => x.IdPunto);
+            e.Property(x => x.IdPunto).ValueGeneratedOnAdd();
+            e.Property(x => x.CodigoExterno).HasMaxLength(50);
+            e.Property(x => x.Nombre).HasMaxLength(200);
+            e.Property(x => x.Direccion).HasMaxLength(300);
+            e.Property(x => x.Ubigeo).HasMaxLength(6);
+            e.Property(x => x.Latitud).HasPrecision(9, 6);
+            e.Property(x => x.Longitud).HasPrecision(9, 6);
+            e.Property(x => x.Horario).HasMaxLength(200);
         });
     }
 }
