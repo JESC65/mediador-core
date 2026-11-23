@@ -1,0 +1,62 @@
+================================================================================
+ETAPA 2: OPS AGENT, TABLERO Y MEDICIÓN EN REPOSO (24 HORAS)
+Fecha: 2026-11-23
+Hora de encendido de la VM: 14:32 (-05:00)
+Hora de inicio de medición en reposo (24h): 15:27 (-05:00) / 20:27 UTC
+================================================================================
+
+1. INSTALACIÓN DE GOOGLE CLOUD OPS AGENT (Windows Server 2022)
+--------------------------------------------------------------------------------
+Comandos ejecutados en PowerShell (Administrador):
+  (New-Object Net.WebClient).DownloadFile("https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.ps1", "${env:UserProfile}\add-google-cloud-ops-agent-repo.ps1")
+  Invoke-Expression "${env:UserProfile}\add-google-cloud-ops-agent-repo.ps1 -AlsoInstall"
+  Get-Service *google-cloud-ops-agent*
+
+Estado verificado:
+  Running  google-cloud-ops-agent (Google Cloud Ops Agent)
+  Running  google-cloud-ops-agent-fluent-bit (Logging Agent)
+  Running  google-cloud-ops-agent-opentelemetry-collector (Metrics Agent)
+
+Nota IAM:
+  CPU, disco y red llegan correctamente a Cloud Monitoring.
+  La métrica de memoria arrojó MonApiPermissionErr en el log del agente porque
+  a la cuenta de servicio 665391730828-compute@developer.gserviceaccount.com
+  le faltan los roles roles/monitoring.metricWriter y roles/logging.logWriter.
+  Se reportó el bloqueo a Javier para habilitarlos.
+
+2. TABLERO EN CLOUD MONITORING
+--------------------------------------------------------------------------------
+Widgets configurados en proyecto mediador-dev:
+  - CPU de la VM (compute.googleapis.com/instance/cpu/utilization)
+  - Disco: Disk read bytes / Disk write bytes
+  - Red: Received bytes / Sent bytes
+  - Memoria: Memory utilization (pendiente de permisos IAM)
+
+3. MEDICIONES EN REPOSO (CADA 30 MINUTOS)
+--------------------------------------------------------------------------------
+[Toma 1 - 15:27 Lima / 20:27 UTC]
+VM Total -> CPU: 1.2% | RAM: 3054 / 8188.4 MB | Disco C: Usado 55.84 GB / Libre 44.04 GB
+
+Proceso        PID RAM_WS_MB Private_MB CPU_Segundos
+-------        --- --------- ---------- ------------
+MediadorCore  4940     120.5       45.2          4.8
+SimuladorEETT 4948      64.3       25.8         1.72
+SQL Server    3472     431.5      577.5         8.19
+
+[Toma 2 - 15:57 Lima]
+VM Total -> CPU: 2.31% | RAM: 3041.6 / 8188.4 MB | Disco C: Usado 55.85 GB / Libre 44.04 GB
+
+Proceso        PID RAM_WS_MB Private_MB CPU_Segundos
+-------        --- --------- ---------- ------------
+MediadorCore  4940       124         47         5.31
+SimuladorEETT 4948      66.8       27.3            2
+SQL Server    3472     432.4        576         9.53
+
+[Toma 3 - 16:27 Lima]
+VM Total -> CPU: 0.67% | RAM: 3070.3 / 8188.4 MB | Disco C: Usado 55.85 GB / Libre 44.03 GB
+
+Proceso        PID RAM_WS_MB Private_MB CPU_Segundos
+-------        --- --------- ---------- ------------
+MediadorCore  4940     132.7       55.1         5.56
+SimuladorEETT 4948      67.1       27.5         2.19
+SQL Server    3472     432.9      578.2        10.56
