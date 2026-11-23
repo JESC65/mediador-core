@@ -1,0 +1,33 @@
+{
+  "Request": {
+    "codigoSeguimiento": "MED-2026-000001"
+  },
+  "Response": {
+    "codigoSeguimiento": "MED-2026-000001",
+    "estadoActual": "EN_VIAJE",
+    "idTransportista": 8,
+    "nombreTransportista": "Transportes Rápido Sur",
+    "precioAcordado": 15.3,
+    "busAsignado": "T5X-840",
+    "historial": [
+      {
+        "estado": "COTIZADO",
+        "fecha": "2026-10-27T14:33:30-05:00",
+        "origen": "MEDIADOR",
+        "comentario": null
+      },
+      {
+        "estado": "CONFIRMADO",
+        "fecha": "2026-10-27T14:37:56-05:00",
+        "origen": "MEDIADOR",
+        "comentario": null
+      },
+      {
+        "estado": "EN_VIAJE",
+        "fecha": "2026-10-27T15:20:11-05:00",
+        "origen": "EETT",
+        "comentario": "Bus T5X-840"
+      }
+    ]
+  }
+}

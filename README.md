@@ -4,7 +4,7 @@ Componente central que compara tarifas entre un courier y varias transportistas,
 
 ## Instalación desde cero
 
-Requisitos: .NET 8 SDK, SQL Server (local o de desarrollo), Git.
+Requisitos: SDK de .NET 10 para compilar, Runtime de ASP.NET Core 10 para ejecutar los servicios, SQL Server (local o de desarrollo), Git.
 
 1. Clonar el repositorio y entrar a la carpeta del Mediador.
 2. Restaurar el esquema y los datos de referencia, en este orden, contra la base `MediadorDev`:

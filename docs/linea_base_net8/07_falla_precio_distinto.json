@@ -1,0 +1,26 @@
+{
+  "Request": {
+    "headers": {
+      "X-Escenario": "PRECIO_DISTINTO"
+    },
+    "idCorrelacion": "SIM-TEST-PRECIO-DISTINTO",
+    "idRuta": "R-LIM-TRU",
+    "tipoCarga": "CARGA_LIVIANA",
+    "paquetes": [
+      {
+        "pesoKg": 4.5,
+        "largoCm": 40.0,
+        "anchoCm": 30.0,
+        "altoCm": 15.0,
+        "esFragil": false
+      }
+    ]
+  },
+  "Response": {
+    "idCorrelacion": "SIM-TEST-PRECIO-DISTINTO",
+    "disponible": true,
+    "precio": 25.92,
+    "detalleCalculo": "Tramo 0.00-5.00 kg, CARGA_LIVIANA",
+    "vigenteHasta": "2026-10-27T18:33:30-05:00"
+  }
+}
