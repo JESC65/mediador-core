@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demo del Mediador</title>
+<style>
+/* Página de la demo del Mediador. Un solo archivo, sin bibliotecas externas.
+   Se sirve como archivo estático desde el propio Mediador, para quedar en la misma dirección que la API. */
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1d2430;--quiet:#5b6575;--line:#d9dee6;--accent:#1f5fbf;--accent-soft:#e7effb;--ok:#1d7a46;--ok-soft:#e5f4ec;--bad:#b3261e;--bad-soft:#fbe9e7;--warn:#8a5a00;--warn-soft:#fff3d6}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "Segoe UI",system-ui,sans-serif}
+header{display:flex;align-items:center;gap:16px;padding:14px 24px;background:var(--card);border-bottom:1px solid var(--line)}
+header h1{font-size:20px;margin:0}
+.badge{font-size:12px;font-weight:700;letter-spacing:.06em;padding:4px 10px;border-radius:999px;background:var(--warn-soft);color:var(--warn)}
+main{display:grid;grid-template-columns:minmax(380px,1fr) minmax(380px,1fr);gap:20px;padding:20px 24px}
+section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+h2{font-size:16px;margin:0 0 10px}
+h2 .num{display:inline-block;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;text-align:center;font-size:13px;line-height:24px;margin-right:8px}
+.col{display:flex;flex-direction:column;gap:16px}
+button{font:inherit;font-weight:600;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:8px;padding:8px 14px;cursor:pointer}
+button.sec{background:#fff;color:var(--accent)}
+button:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+textarea{width:100%;min-height:150px;font:12.5px/1.4 Consolas,monospace;border:1px solid var(--line);border-radius:8px;padding:8px;resize:vertical}
+details summary{cursor:pointer;color:var(--quiet);font-size:13px;margin:6px 0}
+.opts{display:grid;gap:8px;margin-top:10px}
+.opt{display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.opt .name{font-weight:600}
+.opt .meta{color:var(--quiet);font-size:13px}
+.price{font-size:18px;font-weight:700}
+.code{font:700 28px/1.2 Consolas,monospace;color:var(--accent);letter-spacing:.02em}
+.state{display:inline-block;margin-top:6px;padding:4px 10px;border-radius:6px;background:var(--accent-soft);color:var(--accent);font-weight:700}
+.timeline{list-style:none;margin:14px 0 0;padding:0 0 0 18px;border-left:2px solid var(--line)}
+.timeline li{position:relative;margin:0 0 14px;padding-left:10px}
+.timeline li::before{content:"";position:absolute;left:-26px;top:5px;width:12px;height:12px;border-radius:50%;background:var(--accent)}
+.timeline .st{font-weight:700}
+.timeline .when{color:var(--quiet);font-size:13px}
+.msg{margin-top:10px;padding:10px 12px;border-radius:8px;font-size:14px}
+.msg.ok{background:var(--ok-soft);color:var(--ok)}
+.msg.bad{background:var(--bad-soft);color:var(--bad)}
+.msg.info{background:var(--accent-soft);color:var(--accent)}
+#log{font:12px/1.5 Consolas,monospace;max-height:220px;overflow:auto;background:#0f1622;color:#cfe3ff;border-radius:8px;padding:10px}
+#log .e{color:#ff9e94}
+.small{font-size:13px;color:var(--quiet)}
+label.inline{display:flex;gap:6px;align-items:center;font-size:14px;color:var(--quiet)}
+input[type=password]{font:inherit;border:1px solid var(--line);border-radius:6px;padding:4px 8px;width:200px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Mediador · recorrido de un envío</h1>
+  <span class="badge">SIMULACIÓN · AMBIENTE DE PRUEBA</span>
+  <span class="small" id="envinfo"></span>
+</header>
+
+<main>
+  <div class="col">
+    <section>
+      <h2><span class="num">1</span>El courier pide opciones</h2>
+      <div class="row">
+        <button id="btnCotizar">Cotizar</button>
+        <button class="sec" id="btnNuevoId" title="Genera un idCorrelacion nuevo">Nuevo envío</button>
+        <span class="small">idCorrelacion: <b id="idCorr"></b></span>
+      </div>
+      <details><summary>Ver o editar la solicitud</summary><textarea id="jsonCotizar"></textarea></details>
+      <div id="opciones" class="opts"></div>
+      <div id="msgCotizar"></div>
+    </section>
+
+    <section>
+      <h2><span class="num">2</span>El courier confirma una opción</h2>
+      <p class="small">Elige una opción arriba. El Mediador consulta el precio real a la transportista, registra el envío y devuelve el código de seguimiento.</p>
+      <details><summary>Ver o editar la confirmación</summary><textarea id="jsonConfirmar"></textarea></details>
+      <div class="row">
+        <button id="btnConfirmar" disabled>Confirmar</button>
+        <button class="sec" id="btnRepetir" disabled>Enviar la misma confirmación otra vez</button>
+        <button class="sec" id="btnVeinte" disabled>20 confirmaciones a la vez</button>
+      </div>
+      <div id="msgConfirmar"></div>
+    </section>
+
+    <section>
+      <h2>Registro de llamadas</h2>
+      <div id="log"></div>
+    </section>
+  </div>
+
+  <div class="col">
+    <section>
+      <h2><span class="num">3</span>Estado del envío</h2>
+      <div class="code" id="codigo">—</div>
+      <div id="estadoActual"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="sec" id="btnEstado" disabled>Actualizar estado</button>
+        <label class="inline"><input type="checkbox" id="auto"> actualizar cada 3 segundos</label>
+      </div>
+      <ul class="timeline" id="timeline"></ul>
+      <p class="small">Los eventos de la transportista se simulan desde el simulador. Al llegar, aparecen aquí.</p>
+    </section>
+
+    <section>
+      <h2>Ajustes</h2>
+      <label class="inline">Clave de API, si el Mediador la pide: <input type="password" id="apiKey" autocomplete="off"></label>
+      <p class="small">La clave queda solo en esta pestaña; no se guarda en ningún archivo.</p>
+    </section>
+  </div>
+</main>
+
+<script>
+// ================== AJUSTA ESTO ANTES DE LA DEMO ==================
+// Rutas de la API. Usa las mismas que pasaron en tu prueba de punta a punta.
+const CONFIG = {
+  base: '',                                  // vacío = la misma dirección desde donde se sirve esta página
+  rutaCotizar: '/cotizar',                   // por ejemplo '/v1/cotizaciones' si ya migraste a /v1
+  rutaConfirmar: '/confirmar',               // por ejemplo '/v1/envios'
+  rutaEstado: '/envio/{codigo}',             // por ejemplo '/v1/envios/{codigo}'
+  cabeceraClave: 'X-Api-Key',                // nombre de la cabecera de la clave, si existe
+};
+// Plantillas: reemplázalas por las de tu prueba del viernes. {ID} se cambia por un idCorrelacion nuevo.
+const PLANTILLA_COTIZAR = {
+  idCorrelacion: '{ID}',
+  idEnvioCourier: '{ID}',
+  idCourier: 1,
+  ubigeoOrigen: '150101',
+  ubigeoDestino: '040101',
+  tipoCarga: 'CARGA_LIVIANA',
+  paquetes: [{ descripcion: 'Caja de prueba demo', pesoKg: 12.5, cantidad: 1, esFragil: false }],
+};
+const PLANTILLA_CONFIRMAR = {
+  idCorrelacion: '{ID}',
+  idOpcion: '{OPCION}',
+  remitente: { tipoDocumento: 'DNI', numeroDocumento: '45678912', nombres: 'Ana María', apellidos: 'Rojas Pérez', telefono: '987654321' },
+  consignado: { tipoDocumento: 'DNI', numeroDocumento: '10293847', nombres: 'Luis', apellidos: 'Quispe Mamani', telefono: '912345678', direccion: 'Av. Ejemplo 123, Arequipa', ubigeo: '040101' },
+};
+// ===================================================================
+
+const $ = (id) => document.getElementById(id);
+let idCorr = '', opcionElegida = '', codigo = '', timer = null;
+
+function nuevoId() {
+  const d = new Date(), p = (n) => String(n).padStart(2, '0');
+  idCorr = `DEMO-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+  $('idCorr').textContent = idCorr;
+  $('jsonCotizar').value = JSON.stringify(PLANTILLA_COTIZAR, null, 2).replaceAll('{ID}', idCorr);
+  opcionElegida = ''; codigo = '';
+  $('opciones').innerHTML = ''; $('msgCotizar').innerHTML = ''; $('msgConfirmar').innerHTML = '';
+  $('codigo').textContent = '—'; $('estadoActual').innerHTML = ''; $('timeline').innerHTML = '';
+  ['btnConfirmar', 'btnRepetir', 'btnVeinte', 'btnEstado'].forEach((b) => ($(b).disabled = true));
+  armarConfirmacion();
+}
+function armarConfirmacion() {
+  $('jsonConfirmar').value = JSON.stringify(PLANTILLA_CONFIRMAR, null, 2).replaceAll('{ID}', idCorr).replaceAll('{OPCION}', opcionElegida || '{OPCION}');
+}
+function log(texto, error) {
+  const div = document.createElement('div');
+  if (error) div.className = 'e';
+  div.textContent = `${new Date().toLocaleTimeString('es-PE')}  ${texto}`;
+  $('log').prepend(div);
+}
+function aviso(dondeId, clase, texto) { $(dondeId).innerHTML = `<div class="msg ${clase}">${texto}</div>`; }
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+async function llamar(metodo, ruta, cuerpo) {
+  const headers = { 'Content-Type': 'application/json' };
+  const clave = $('apiKey').value.trim();
+  if (clave) headers[CONFIG.cabeceraClave] = clave;
+  const t0 = performance.now();
+  try {
+    const r = await fetch(CONFIG.base + ruta, { method: metodo, headers, body: cuerpo ? JSON.stringify(cuerpo) : undefined });
+    const ms = Math.round(performance.now() - t0);
+    const texto = await r.text();
+    let datos = null; try { datos = texto ? JSON.parse(texto) : null; } catch { datos = texto; }
+    log(`${metodo} ${ruta} → ${r.status} en ${ms} ms`, !r.ok);
+    return { ok: r.ok, status: r.status, datos, ms };
+  } catch (e) {
+    const ms = Math.round(performance.now() - t0);
+    log(`${metodo} ${ruta} → sin respuesta en ${ms} ms (${e.message})`, true);
+    return { ok: false, status: 0, datos: null, ms };
+  }
+}
+function leerJson(id) {
+  try { return JSON.parse($(id).value); } catch { aviso(id === 'jsonCotizar' ? 'msgCotizar' : 'msgConfirmar', 'bad', 'La solicitud no es un JSON válido.'); return null; }
+}
+const campo = (o, ...nombres) => { for (const n of nombres) if (o && o[n] !== undefined && o[n] !== null) return o[n]; return undefined; };
+
+async function cotizar() {
+  const cuerpo = leerJson('jsonCotizar'); if (!cuerpo) return;
+  $('opciones').innerHTML = ''; $('msgCotizar').innerHTML = '';
+  const r = await llamar('POST', CONFIG.rutaCotizar, cuerpo);
+  if (!r.ok) return aviso('msgCotizar', 'bad', `El Mediador respondió ${r.status || 'sin conexión'}. ${esc(campo(r.datos, 'mensaje', 'message', 'title') || '')}`);
+  const opciones = campo(r.datos, 'opciones', 'Opciones') || [];
+  if (!opciones.length) return aviso('msgCotizar', 'info', `Sin opciones: ${esc(campo(r.datos, 'motivo') || '')} ${esc(campo(r.datos, 'descripcion') || '')}`);
+  aviso('msgCotizar', 'ok', `${opciones.length} opciones, ordenadas por precio, en ${r.ms} ms.`);
+  opciones.forEach((o) => {
+    const div = document.createElement('div');
+    div.className = 'opt';
+    const id = campo(o, 'idOpcion', 'IdOpcion');
+    div.innerHTML = `<div><div class="name">${esc(campo(o, 'nombreTransportista', 'transportista'))}</div>
+      <div class="meta">${esc(campo(o, 'frecuenciaSalidas') || '')} ${campo(o, 'horaSalidaHabitual') ? '· sale ' + esc(o.horaSalidaHabitual) : ''} · opción ${esc(id)}</div></div>
+      <div class="row"><span class="price">S/ ${Number(campo(o, 'precioReferencial', 'precio') ?? 0).toFixed(2)}</span><button class="sec">Elegir</button></div>`;
+    div.querySelector('button').onclick = () => {
+      opcionElegida = id; armarConfirmacion();
+      document.querySelectorAll('.opt').forEach((x) => (x.style.borderColor = ''));
+      div.style.borderColor = 'var(--accent)';
+      $('btnConfirmar').disabled = false;
+      aviso('msgConfirmar', 'info', `Elegida: ${esc(campo(o, 'nombreTransportista'))}. Ahora, Confirmar.`);
+    };
+    $('opciones').appendChild(div);
+  });
+}
+
+async function confirmar() {
+  const cuerpo = leerJson('jsonConfirmar'); if (!cuerpo) return;
+  aviso('msgConfirmar', 'info', 'Confirmando… el Mediador consulta el precio real y registra en la transportista.');
+  const r = await llamar('POST', CONFIG.rutaConfirmar, cuerpo);
+  const est = campo(r.datos, 'estado', 'Estado');
+  const cod = campo(r.datos, 'codigoSeguimiento', 'CodigoSeguimiento', 'codigo');
+  const motivo = campo(r.datos, 'motivo', 'Motivo', 'mensaje', 'message', 'title');
+  if (!r.ok) return aviso('msgConfirmar', 'bad', `No se confirmó (${r.status || 'sin conexión'}). ${esc(motivo || '')}`);
+  if (est !== 'CONFIRMADO' && est !== 'YA_CONFIRMADO') {
+    if (cod) { codigo = cod; $('codigo').textContent = codigo; $('btnEstado').disabled = false; estado(); }
+    $('btnConfirmar').disabled = false;
+    return aviso('msgConfirmar', 'bad', `No se confirmó: <b>${esc(est || 'SIN_ESTADO')}</b>${motivo ? ' · ' + esc(motivo) : ''}${cod ? ' (código: ' + esc(cod) + ')' : ''}`);
+  }
+  if (!cod) return aviso('msgConfirmar', 'bad', `No se confirmó (${r.status}). ${esc(motivo || '')}`);
+  codigo = cod;
+  $('codigo').textContent = codigo;
+  aviso('msgConfirmar', 'ok', `${est === 'YA_CONFIRMADO' ? 'Ya estaba confirmado' : 'Confirmado'} en ${r.ms} ms. Código de seguimiento: <b>${esc(codigo)}</b>.`);
+  ['btnRepetir', 'btnVeinte', 'btnEstado'].forEach((b) => ($(b).disabled = false));
+  estado();
+}
+
+async function repetir() {
+  const cuerpo = leerJson('jsonConfirmar'); if (!cuerpo) return;
+  const r = await llamar('POST', CONFIG.rutaConfirmar, cuerpo);
+  const cod = campo(r.datos, 'codigoSeguimiento', 'CodigoSeguimiento', 'codigo');
+  if (cod && cod === codigo) aviso('msgConfirmar', 'ok', `La misma confirmación devolvió el mismo código, <b>${esc(cod)}</b>: no se creó un segundo envío.`);
+  else aviso('msgConfirmar', 'bad', `Respuesta ${r.status}: ${esc(cod || campo(r.datos, 'motivo', 'mensaje') || 'sin código')}. Revisa la base.`);
+}
+
+async function veinte() {
+  const cuerpo = leerJson('jsonConfirmar'); if (!cuerpo) return;
+  aviso('msgConfirmar', 'info', 'Enviando 20 confirmaciones idénticas al mismo tiempo…');
+  const resultados = await Promise.all(Array.from({ length: 20 }, () => llamar('POST', CONFIG.rutaConfirmar, cuerpo)));
+  const codigos = new Set(resultados.map((r) => campo(r.datos, 'codigoSeguimiento', 'CodigoSeguimiento', 'codigo')).filter(Boolean));
+  const ok = resultados.filter((r) => r.ok).length;
+  aviso('msgConfirmar', codigos.size === 1 ? 'ok' : 'bad',
+    `20 enviadas · ${ok} respuestas correctas · códigos distintos: <b>${codigos.size}</b> (${esc([...codigos].join(', '))}). ` +
+    (codigos.size === 1 ? 'Un solo envío.' : 'Revisa la base.'));
+}
+
+async function estado() {
+  if (!codigo) return;
+  const r = await llamar('GET', CONFIG.rutaEstado.replace('{codigo}', encodeURIComponent(codigo)));
+  if (!r.ok) return;
+  const actual = campo(r.datos, 'estadoActual', 'estado', 'EstadoActual');
+  const trans = campo(r.datos, 'nombreTransportista');
+  const precio = campo(r.datos, 'precioAcordado');
+  const bus = campo(r.datos, 'busAsignado');
+  $('estadoActual').innerHTML = `<span class="state">${esc(actual || '—')}</span>
+    <div class="small" style="margin-top:6px">${trans ? 'Transportista: ' + esc(trans) : ''}${precio !== undefined ? ' · precio acordado S/ ' + Number(precio).toFixed(2) : ''}${bus ? ' · bus ' + esc(bus) : ''}</div>`;
+  const historial = campo(r.datos, 'historial', 'Historial', 'estados') || [];
+  $('timeline').innerHTML = historial.map((h) => {
+    const f = campo(h, 'fecha', 'fechaHora', 'Fecha');
+    const cuando = f ? new Date(f).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'medium' }) : '';
+    return `<li><div class="st">${esc(campo(h, 'estado', 'Estado'))}</div><div class="when">${esc(cuando)} · ${esc(campo(h, 'origen', 'Origen') || '')}</div></li>`;
+  }).join('');
+}
+
+$('btnNuevoId').onclick = nuevoId;
+$('btnCotizar').onclick = cotizar;
+$('btnConfirmar').onclick = confirmar;
+$('btnRepetir').onclick = repetir;
+$('btnVeinte').onclick = veinte;
+$('btnEstado').onclick = estado;
+$('auto').onchange = (e) => { clearInterval(timer); if (e.target.checked) timer = setInterval(estado, 3000); };
+$('envinfo').textContent = `API: ${CONFIG.base || location.origin}`;
+nuevoId();
+</script>
+</body>
+</html>
