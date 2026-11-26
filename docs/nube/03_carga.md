@@ -11,13 +11,10 @@ Pruebas ejecutadas en la VM de Google Cloud contra `http://localhost:5250` (Tran
 
 *\*Nota sobre procesos:* En las tomas de PowerShell solo se capturó `SQL Server` (~471.9 MB WS / ~611 MB Private) porque la sesión no tenía permisos elevados para leer la línea de comandos de los servicios `MediadorCore` y `SimuladorEETT`.
 
-## Hallazgo técnico en Corrida 1 y corrección aplicada
+## Hallazgo técnico en Corrida 1 y corrección aplicada (no válida, se repite)
 
-- **Incidente (`22:39:50` UTC, envío 442/500):** Del envío 1 al 441 todas las confirmaciones respondieron `CONFIRMADO` (mediana `43 ms`). A partir del 442, los 59 envíos restantes devolvieron `ERROR_HTTP_500`.
-- **Causa raíz:** En `database/01_esquema.sql`, la columna `MED.Envio.CodigoSeguimiento` tenía una restricción `UNIQUE` sin filtro (`UQ__Envio__6A877754BAE60951`). En SQL Server, esto solo permite un único valor `NULL` en toda la tabla. Al quedar un envío cotizado sin confirmar (`CodigoSeguimiento = NULL`), SQL Server rechazó todos los `POST /cotizar` posteriores.
-- **Corrección aplicada antes de la Corrida 2:** Se reemplazó la restricción por un índice único filtrado (`WHERE CodigoSeguimiento IS NOT NULL`):
-  ```sql
-  ALTER TABLE MED.Envio DROP CONSTRAINT UQ__Envio__6A877754BAE60951;
-  CREATE UNIQUE NONCLUSTERED INDEX UQ_Envio_CodigoSeguimiento
-      ON MED.Envio(CodigoSeguimiento)
-      WHERE CodigoSeguimiento IS NOT NULL;
+Qué fallaba: La restricción UNIQUE sin filtro sobre MED.Envio.CodigoSeguimiento solo admitía un valor NULL en toda la tabla, rechazando nuevas cotizaciones si quedaba un envío sin confirmar.
+
+Cómo se encontró: Al ejecutar la corrida de 50/min, a partir del envío 442/500 todas las operaciones devolvieron ERROR_HTTP_500 (59 errores, 11,8 %).
+
+Cómo se corrigió: Se reemplazó la restricción por el índice único filtrado UQ_Envio_CodigoSeguimiento (WHERE CodigoSeguimiento IS NOT NULL), versionado en database/07_indice_codigo_seguimiento.sql.
